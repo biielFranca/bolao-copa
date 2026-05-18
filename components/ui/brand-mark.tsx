@@ -1,32 +1,38 @@
-import { theme, hexA } from '@/lib/design-tokens';
+import { hexA } from '@/lib/design-tokens';
 
-export function BrandMark({ size = 56 }: { size?: number }) {
-  const t = theme;
+interface BrandMarkProps {
+  size?: number;
+  badge?: boolean;  // true = white card wrapper com sombra (default)
+  dark?: boolean;   // true = versão escura do logo
+}
+
+export function BrandMark({ size = 56, badge = true, dark = false }: BrandMarkProps) {
+  const src = dark ? '/assets/lau-logo-dark.png' : '/assets/lau-logo-light.png';
+  const w = Math.round(size * 1.07);
+  const pad = badge ? Math.round(size * 0.08) : 0;
+
   return (
     <div style={{
-      width: size, height: size, borderRadius: size * 0.32,
-      background: t.primary, position: 'relative',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      boxShadow: `0 2px 0 ${t.primaryDeep}, 0 8px 20px ${hexA(t.primaryDeep, 0.25)}`,
+      width: w + pad * 2,
+      height: size + pad * 2,
+      padding: pad,
+      background: badge ? '#ffffff' : 'transparent',
+      borderRadius: badge ? Math.round(size * 0.22) : 0,
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: badge
+        ? `0 2px 0 ${hexA('#000', 0.18)}, 0 6px 14px ${hexA('#000', 0.14)}`
+        : 'none',
       flexShrink: 0,
+      overflow: 'hidden',
     }}>
-      <div style={{
-        position: 'absolute', inset: size * 0.1, borderRadius: size * 0.22,
-        background: `repeating-linear-gradient(135deg, ${hexA(t.accent, 0.0)} 0 6px, ${hexA(t.accent, 0.12)} 6px 12px)`,
-        pointerEvents: 'none',
-      }} />
-      <span style={{
-        fontFamily: "'Anton', sans-serif", color: t.accent,
-        fontSize: size * 0.58, letterSpacing: -0.5, lineHeight: 1,
-        textShadow: `0 2px 0 ${t.primaryDeep}`,
-      }}>LB</span>
-      <div style={{
-        position: 'absolute', bottom: -size * 0.12, right: -size * 0.08,
-        width: size * 0.36, height: size * 0.36, borderRadius: '50%',
-        background: t.accent, border: `${Math.max(1.5, size * 0.04)}px solid ${t.ink}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: size * 0.24, color: t.ink,
-      }}>⚽</div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt="Lau Burger"
+        style={{ height: '100%', width: 'auto', display: 'block', objectFit: 'contain' }}
+      />
     </div>
   );
 }

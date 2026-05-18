@@ -192,7 +192,7 @@ export default function AdminPage() {
   const [tournament, setTournament] = useState<TournamentResult | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'resultados' | 'participantes' | 'palpites'>('resultados');
+  const [activeTab, setActiveTab] = useState<'chave' | 'resultados' | 'participantes' | 'palpites'>('chave');
 
   const [matchForm, setMatchForm] = useState({
     brazil_morocco_brazil_goals: '',
@@ -434,23 +434,28 @@ export default function AdminPage() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, padding: '14px 14px 0', borderBottom: `1px solid ${t.line}`, marginTop: 4 }}>
-        {(['resultados', 'participantes', 'palpites'] as const).map((tab) => {
-          const active = activeTab === tab;
+      <div style={{ display: 'flex', gap: 0, padding: '14px 14px 0', borderBottom: `1px solid ${t.line}`, marginTop: 4, overflowX: 'auto' }}>
+        {([
+          { id: 'chave', label: '🏆 Chave' },
+          { id: 'resultados', label: '⚽ Brasil' },
+          { id: 'participantes', label: 'Participantes' },
+          { id: 'palpites', label: 'Palpites' },
+        ] as const).map(({ id, label }) => {
+          const active = activeTab === id;
           return (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+              key={id}
+              onClick={() => setActiveTab(id)}
               style={{
                 padding: '8px 14px', border: 'none', background: 'transparent',
                 fontFamily: 'var(--font-manrope)', fontWeight: 700, fontSize: 12.5,
-                letterSpacing: 0.3, textTransform: 'capitalize', cursor: 'pointer',
+                letterSpacing: 0.3, cursor: 'pointer', whiteSpace: 'nowrap',
                 color: active ? t.primary : t.inkMuted,
                 borderBottom: active ? `2px solid ${t.primary}` : '2px solid transparent',
                 marginBottom: -1,
               }}
             >
-              {tab}
+              {label}
             </button>
           );
         })}
@@ -458,6 +463,31 @@ export default function AdminPage() {
 
       {/* Tab content */}
       <div style={{ flex: 1, padding: '16px 14px 32px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* ── Chave tab ─────────────────────────────────────────────── */}
+        {activeTab === 'chave' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Card>
+              <CardTitle>Mata-mata da Copa 2026</CardTitle>
+              <p style={{ fontFamily: 'var(--font-manrope)', fontSize: 13, color: t.inkMuted, margin: '8px 0 0', lineHeight: 1.5 }}>
+                A chave do mata-mata é gerenciada automaticamente pelo cron de sync (⚽ Sync) após cada rodada.
+                O botão atualiza os resultados do Brasil no grupo — os resultados do mata-mata
+                serão integrados em breve.
+              </p>
+              <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: hexA(t.primary, 0.06), border: `1px solid ${hexA(t.primary, 0.2)}` }}>
+                <div style={{ fontFamily: 'var(--font-anton)', fontSize: 15, color: t.primary, letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 8 }}>
+                  Grupo A
+                </div>
+                {['BRA — Brasil', 'MAR — Marrocos', 'HAI — Haiti', 'SCO — Escócia'].map((team, i) => (
+                  <div key={team} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < 3 ? `1px dashed ${t.line}` : 'none' }}>
+                    <span style={{ fontFamily: 'var(--font-anton)', fontSize: 13, color: t.inkMuted, width: 20 }}>{i + 1}º</span>
+                    <span style={{ fontFamily: 'var(--font-manrope)', fontSize: 13, fontWeight: 700, color: t.ink }}>{team}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
 
         {/* ── Resultados tab ────────────────────────────────────────── */}
         {activeTab === 'resultados' && (

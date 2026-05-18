@@ -99,27 +99,22 @@ export default function HomePage() {
         </div>
 
         <div style={{ position: 'relative', padding: '70px 24px 0', zIndex: 2 }}>
-          {/* Brand row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-            <BrandMark size={48} />
-            <div>
-              <div style={{
-                fontFamily: 'var(--font-manrope), Manrope, sans-serif',
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: 2,
-                opacity: 0.8,
-              }}>
-                LAU BURGUER · APRESENTA
-              </div>
-              <div style={{
-                fontFamily: 'var(--font-anton), Anton, sans-serif',
-                fontSize: 18,
-                letterSpacing: 0.6,
-                marginTop: 2,
-              }}>
-                BOLÃO DA COPA
-              </div>
+          {/* Brand column */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+            <BrandMark size={64} />
+            <div style={{
+              fontFamily: 'var(--font-anton), Anton, sans-serif',
+              fontSize: 16,
+              letterSpacing: 1.6,
+              textTransform: 'uppercase',
+              background: t.accent,
+              color: t.accentInk,
+              padding: '4px 10px',
+              borderRadius: 6,
+              transform: 'rotate(-2deg)',
+              boxShadow: '0 2px 0 rgba(0,0,0,0.2)',
+            }}>
+              Bolão da Copa
             </div>
           </div>
 
