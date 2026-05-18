@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { theme, hexA, MATCHES, GROUP_TEAMS, CHAMPION_OPTIONS, TEAM_NAMES } from '@/lib/design-tokens';
 import { ScoreStepper } from '@/components/ui/score-stepper';
 import { Flag } from '@/components/ui/flag';
@@ -116,17 +115,17 @@ export default function PalpitesPage() {
 
   useEffect(() => {
     async function checkStatus() {
-      const supabase = createClient();
-      const [{ data: settings }, { data: prediction }] = await Promise.all([
-        supabase.from('app_settings').select('predictions_locked').single(),
-        supabase.from('predictions').select('id').maybeSingle(),
-      ]);
-      if (settings?.predictions_locked) setLocked(true);
-      if (prediction) setAlreadySubmitted(true);
+      try {
+        const res = await fetch('/api/palpites/check');
+        if (res.status === 401) { router.push('/'); return; }
+        const data = await res.json();
+        if (data.locked) setLocked(true);
+        if (data.hasSubmitted) setAlreadySubmitted(true);
+      } catch { /* mantém loading=false */ }
       setLoading(false);
     }
     checkStatus();
-  }, []);
+  }, [router]);
 
   function moveUp(i: number) {
     if (i === 0) return;
@@ -162,8 +161,8 @@ export default function PalpitesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...scores,
-          group_order: groupOrder,
-          champion,
+          group_order: groupOrder.map((code) => TEAM_NAMES[code] ?? code),
+          champion: TEAM_NAMES[champion] ?? champion,
           total_brazil_goals: totalBrazilGoals,
         }),
       });
