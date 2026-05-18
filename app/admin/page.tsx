@@ -489,23 +489,22 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ── Resultados tab ────────────────────────────────────────── */}
+        {/* ── Resultados tab (somente leitura — dados vêm da API) ──── */}
         {activeTab === 'resultados' && (
-          <form onSubmit={handleSaveResults} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Botão de sync da API — destaque no topo da aba */}
+            {/* Sync card */}
             <div style={{
-              background: hexA(t.primary, 0.06),
-              border: `1.5px solid ${hexA(t.primary, 0.25)}`,
+              background: hexA(t.primary, 0.06), border: `1.5px solid ${hexA(t.primary, 0.25)}`,
               borderRadius: 14, padding: '12px 14px',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
             }}>
               <div>
                 <div style={{ fontFamily: 'var(--font-anton)', fontSize: 14, color: t.primary, letterSpacing: 0.4, textTransform: 'uppercase' }}>
-                  Buscar da API
+                  Atualizar da API
                 </div>
                 <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 11.5, color: t.inkMuted, marginTop: 2 }}>
-                  {syncMsg || 'Puxa placares encerrados da api-football e preenche o formulário'}
+                  {syncMsg || 'Puxa placares encerrados da api-football automaticamente'}
                 </div>
               </div>
               <button
@@ -522,114 +521,104 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {/* Partidas — somente leitura */}
             <Card>
-              <CardTitle>Resultados das Partidas</CardTitle>
+              <CardTitle>Partidas do Brasil</CardTitle>
               {[
-                { label: 'Brasil vs Marrocos', key: 'brazil_morocco' },
-                { label: 'Brasil vs Haiti', key: 'brazil_haiti' },
-                { label: 'Brasil vs Escócia', key: 'brazil_scotland' },
-              ].map(({ label, key }, idx) => (
-                <div key={key} style={{ marginBottom: idx < 2 ? 16 : 0 }}>
-                  <Label>{label}</Label>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, color: t.inkMuted, marginBottom: 4 }}>Gols Brasil</div>
-                      <NumberInput
-                        value={matchForm[`${key}_brazil_goals` as keyof typeof matchForm]}
-                        onChange={(v) => setMatchForm((p) => ({ ...p, [`${key}_brazil_goals`]: v }))}
-                      />
+                { label: 'Brasil vs Marrocos', key: 'brazil_morocco', when: 'Qua 24 jun · 16h' },
+                { label: 'Brasil vs Haiti',    key: 'brazil_haiti',   when: 'Dom 28 jun · 13h' },
+                { label: 'Brasil vs Escócia',  key: 'brazil_scotland', when: 'Qua 01 jul · 16h' },
+              ].map(({ label, key, when }, idx) => {
+                const bGoals = matchForm[`${key}_brazil_goals` as keyof typeof matchForm];
+                const oGoals = matchForm[`${key}_opponent_goals` as keyof typeof matchForm];
+                const status = matchForm[`${key}_status` as keyof typeof matchForm];
+                const isFinal = status === 'final';
+                return (
+                  <div key={key} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '12px 0', borderBottom: idx < 2 ? `1px dashed ${t.line}` : 'none',
+                  }}>
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800, fontSize: 13, color: t.ink }}>{label}</div>
+                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, color: t.inkMuted, marginTop: 2 }}>{when}</div>
                     </div>
-                    <div style={{ fontFamily: 'var(--font-anton)', fontSize: 22, color: hexA(t.ink, 0.3), marginTop: 22 }}>×</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, color: t.inkMuted, marginBottom: 4 }}>Gols Adv.</div>
-                      <NumberInput
-                        value={matchForm[`${key}_opponent_goals` as keyof typeof matchForm]}
-                        onChange={(v) => setMatchForm((p) => ({ ...p, [`${key}_opponent_goals`]: v }))}
-                      />
-                    </div>
-                    <div style={{ flex: 1.4 }}>
-                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, color: t.inkMuted, marginBottom: 4 }}>Status</div>
-                      <Select
-                        value={matchForm[`${key}_status` as keyof typeof matchForm]}
-                        onValueChange={(val) => { if (val) setMatchForm((p) => ({ ...p, [`${key}_status`]: val })); }}
-                      >
-                        <SelectTrigger style={{ borderRadius: 10, borderColor: t.line }}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pendente</SelectItem>
-                          <SelectItem value="final">Final</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {isFinal ? (
+                        <div style={{
+                          fontFamily: 'var(--font-anton)', fontSize: 28, letterSpacing: -0.5, color: t.ink,
+                        }}>
+                          {bGoals} <span style={{ color: hexA(t.ink, 0.3) }}>×</span> {oGoals}
+                        </div>
+                      ) : (
+                        <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 12, color: t.inkMuted, fontWeight: 700 }}>
+                          Aguardando
+                        </div>
+                      )}
+                      <div style={{
+                        padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 800,
+                        fontFamily: 'var(--font-manrope)', letterSpacing: 0.8, textTransform: 'uppercase',
+                        background: isFinal ? hexA(t.primary, 0.12) : hexA(t.ink, 0.07),
+                        color: isFinal ? t.primary : t.inkMuted,
+                      }}>
+                        {isFinal ? 'Final' : 'Pendente'}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </Card>
 
+            {/* Torneio — somente leitura */}
             <Card>
-              <CardTitle>Resultado do Torneio</CardTitle>
-              <Label>Ordem final do Grupo A</Label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-                {['1º', '2º', '3º', '4º'].map((pos, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontFamily: 'var(--font-manrope)', fontWeight: 700, fontSize: 12, color: t.inkMuted, width: 18, flexShrink: 0 }}>{pos}</span>
-                    <Select
-                      value={tournamentForm.final_group_order[i] ?? ''}
-                      onValueChange={(val) => { if (val) setGroupPos(i, val); }}
-                    >
-                      <SelectTrigger style={{ flex: 1, borderRadius: 10, borderColor: t.line }}>
-                        <SelectValue placeholder="Time..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(tournamentForm.final_group_order[i]
-                          ? [tournamentForm.final_group_order[i]!, ...getAvailableTeamsForTournament(i)]
-                          : getAvailableTeamsForTournament(i)
-                        ).map((team) => (
-                          <SelectItem key={team} value={team}>{team}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
-              </div>
+              <CardTitle>Classificação do Grupo A</CardTitle>
+              {tournamentForm.final_group_order.some(Boolean) ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {tournamentForm.final_group_order.map((team, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '9px 0', borderBottom: i < 3 ? `1px dashed ${t.line}` : 'none',
+                    }}>
+                      <span style={{ fontFamily: 'var(--font-anton)', fontSize: 18, color: i < 2 ? t.primary : t.inkMuted, width: 28 }}>
+                        {i + 1}º
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800, fontSize: 14, color: t.ink }}>
+                        {team || '—'}
+                      </span>
+                      {i < 2 && (
+                        <span style={{
+                          marginLeft: 'auto', fontSize: 10, fontWeight: 800, letterSpacing: 0.8,
+                          fontFamily: 'var(--font-manrope)', color: t.primary, textTransform: 'uppercase',
+                        }}>
+                          Classificado
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 13, color: t.inkMuted, paddingTop: 8 }}>
+                  Classificação disponível após o fim da fase de grupos.
+                </div>
+              )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div>
-                  <Label>Campeão do Mundo</Label>
-                  <TextInput
-                    value={tournamentForm.champion}
-                    onChange={(v) => setTournamentForm((p) => ({ ...p, champion: v }))}
-                    placeholder="Ex: Brasil"
-                  />
+              {(tournamentForm.champion || tournamentForm.total_brazil_goals) && (
+                <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {tournamentForm.champion && (
+                    <div style={{ background: hexA(t.accent, 0.15), borderRadius: 10, padding: '10px 12px' }}>
+                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, fontWeight: 800, letterSpacing: 1.2, color: t.inkMuted, textTransform: 'uppercase', marginBottom: 4 }}>Campeão</div>
+                      <div style={{ fontFamily: 'var(--font-anton)', fontSize: 18, color: t.ink }}>{tournamentForm.champion}</div>
+                    </div>
+                  )}
+                  {tournamentForm.total_brazil_goals && (
+                    <div style={{ background: hexA(t.primary, 0.08), borderRadius: 10, padding: '10px 12px' }}>
+                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, fontWeight: 800, letterSpacing: 1.2, color: t.inkMuted, textTransform: 'uppercase', marginBottom: 4 }}>Gols Brasil</div>
+                      <div style={{ fontFamily: 'var(--font-anton)', fontSize: 18, color: t.ink }}>{tournamentForm.total_brazil_goals}</div>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <Label>Gols Brasil (total)</Label>
-                  <NumberInput
-                    value={tournamentForm.total_brazil_goals}
-                    onChange={(v) => setTournamentForm((p) => ({ ...p, total_brazil_goals: v }))}
-                    placeholder="Ex: 12"
-                  />
-                </div>
-              </div>
+              )}
             </Card>
-
-            {resultsMsg && (
-              <div style={{
-                background: resultsMsg.startsWith('✅') ? hexA(t.primary, 0.08) : hexA(t.danger, 0.08),
-                border: `1px solid ${resultsMsg.startsWith('✅') ? hexA(t.primary, 0.3) : hexA(t.danger, 0.3)}`,
-                borderRadius: 12, padding: '10px 14px',
-                fontFamily: 'var(--font-manrope)', fontSize: 13.5, fontWeight: 700,
-                color: resultsMsg.startsWith('✅') ? t.primary : t.danger,
-              }}>
-                {resultsMsg}
-              </div>
-            )}
-
-            <PrimaryButton style={{ width: '100%' }} disabled={savingResults}>
-              {savingResults ? 'Salvando...' : 'Salvar Resultados'}
-            </PrimaryButton>
-          </form>
+          </div>
         )}
 
         {/* ── Participantes tab ─────────────────────────────────────── */}
