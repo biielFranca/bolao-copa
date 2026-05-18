@@ -2,24 +2,95 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
+import { theme, hexA, MATCHES, GROUP_TEAMS, CHAMPION_OPTIONS, TEAM_NAMES } from '@/lib/design-tokens';
+import { ScoreStepper } from '@/components/ui/score-stepper';
+import { Flag } from '@/components/ui/flag';
+import { PhoneHeader } from '@/components/ui/phone-header';
+import { BgStripes } from '@/components/ui/bg-stripes';
 
-const TEAMS = ['Brasil', 'Marrocos', 'Haiti', 'Escócia'];
-const POSITIONS = ['1º', '2º', '3º', '4º'];
+const t = theme;
 
-type GroupOrder = Record<string, string>;
+// ─── Locked screen ────────────────────────────────────────────────────────────
+function LockedScreen() {
+  return (
+    <div style={{ minHeight: '100dvh', background: t.bg, display: 'flex', flexDirection: 'column' }}>
+      <PhoneHeader rankingHref="/ranking" />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', gap: 20 }}>
+        <div style={{ fontSize: 56, lineHeight: 1 }}>🔒</div>
+        <h2 style={{ fontFamily: 'var(--font-anton)', fontSize: 32, color: t.ink, textAlign: 'center', margin: 0, lineHeight: 1.1 }}>
+          PALPITES<br />ENCERRADOS
+        </h2>
+        <p style={{ fontFamily: 'var(--font-manrope)', fontSize: 15, color: t.inkMuted, textAlign: 'center', margin: 0 }}>
+          O prazo para envio de palpites foi encerrado.
+        </p>
+        <a href="/ranking" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          background: t.primary, color: t.primaryInk, borderRadius: 14,
+          padding: '14px 28px', fontFamily: 'var(--font-anton)', fontSize: 18,
+          textDecoration: 'none', boxShadow: `0 4px 0 ${t.primaryDeep}`,
+        }}>
+          Ver ranking →
+        </a>
+      </div>
+    </div>
+  );
+}
 
+// ─── Submitted screen ─────────────────────────────────────────────────────────
+function SubmittedScreen() {
+  return (
+    <div style={{ minHeight: '100dvh', background: t.bg, display: 'flex', flexDirection: 'column' }}>
+      <PhoneHeader rankingHref="/ranking" />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px', gap: 20 }}>
+        <div style={{ fontSize: 64, lineHeight: 1 }}>✅</div>
+        <h2 style={{ fontFamily: 'var(--font-anton)', fontSize: 32, color: t.ink, textAlign: 'center', margin: 0, lineHeight: 1.1 }}>
+          PALPITE<br />ENVIADO!
+        </h2>
+        <p style={{ fontFamily: 'var(--font-manrope)', fontSize: 15, color: t.inkMuted, textAlign: 'center', margin: 0, maxWidth: 280 }}>
+          Seus palpites estão registrados. Boa sorte no bolão!
+        </p>
+        <a href="/ranking" style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          background: t.primary, color: t.primaryInk, borderRadius: 14,
+          padding: '14px 28px', fontFamily: 'var(--font-anton)', fontSize: 18,
+          textDecoration: 'none', boxShadow: `0 4px 0 ${t.primaryDeep}`,
+        }}>
+          Ver ranking atual →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ─── Section card wrapper ─────────────────────────────────────────────────────
+function SectionCard({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      background: t.surface,
+      borderRadius: 20,
+      padding: '18px 16px',
+      border: `1px solid ${t.line}`,
+      ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+// ─── Section label ────────────────────────────────────────────────────────────
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 800,
+      letterSpacing: 1.6, color: t.inkMuted, textTransform: 'uppercase', marginBottom: 12,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function PalpitesPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -28,36 +99,28 @@ export default function PalpitesPage() {
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [locked, setLocked] = useState(false);
 
-  // Form state
-  const [scores, setScores] = useState({
-    brazil_morocco_brazil_goals: '',
-    brazil_morocco_opponent_goals: '',
-    brazil_haiti_brazil_goals: '',
-    brazil_haiti_opponent_goals: '',
-    brazil_scotland_brazil_goals: '',
-    brazil_scotland_opponent_goals: '',
+  // Scores as numbers
+  const [scores, setScores] = useState<Record<string, number>>({
+    brazil_morocco_brazil_goals: 0,
+    brazil_morocco_opponent_goals: 0,
+    brazil_haiti_brazil_goals: 0,
+    brazil_haiti_opponent_goals: 0,
+    brazil_scotland_brazil_goals: 0,
+    brazil_scotland_opponent_goals: 0,
   });
 
-  // Ordem do grupo: posição -> time
-  const [groupOrder, setGroupOrder] = useState<GroupOrder>({
-    '0': '',
-    '1': '',
-    '2': '',
-    '3': '',
-  });
-
+  // Group order as ordered array of team codes
+  const [groupOrder, setGroupOrder] = useState<string[]>([...GROUP_TEAMS]);
   const [champion, setChampion] = useState('');
-  const [totalBrazilGoals, setTotalBrazilGoals] = useState('');
+  const [totalBrazilGoals, setTotalBrazilGoals] = useState(0);
 
   useEffect(() => {
     async function checkStatus() {
       const supabase = createClient();
-
       const [{ data: settings }, { data: prediction }] = await Promise.all([
         supabase.from('app_settings').select('predictions_locked').single(),
         supabase.from('predictions').select('id').maybeSingle(),
       ]);
-
       if (settings?.predictions_locked) setLocked(true);
       if (prediction) setAlreadySubmitted(true);
       setLoading(false);
@@ -65,72 +128,47 @@ export default function PalpitesPage() {
     checkStatus();
   }, []);
 
-  function setScore(field: keyof typeof scores, value: string) {
-    const digits = value.replace(/\D/g, '').slice(0, 2);
-    setScores((prev) => ({ ...prev, [field]: digits }));
-  }
-
-  function setGroupPosition(posIndex: string, team: string) {
+  function moveUp(i: number) {
+    if (i === 0) return;
     setGroupOrder((prev) => {
-      const updated = { ...prev };
-      // remover este time de outras posições
-      Object.keys(updated).forEach((k) => {
-        if (updated[k] === team) updated[k] = '';
-      });
-      updated[posIndex] = team;
-      return updated;
+      const next = [...prev];
+      [next[i - 1], next[i]] = [next[i], next[i - 1]];
+      return next;
     });
   }
 
-  function getGroupOrderArray(): string[] {
-    return [groupOrder['0'], groupOrder['1'], groupOrder['2'], groupOrder['3']];
-  }
-
-  function getAvailableTeams(currentPos: string): string[] {
-    const taken = Object.entries(groupOrder)
-      .filter(([k, v]) => k !== currentPos && v !== '')
-      .map(([, v]) => v);
-    return TEAMS.filter((t) => !taken.includes(t));
+  function moveDown(i: number) {
+    if (i === groupOrder.length - 1) return;
+    setGroupOrder((prev) => {
+      const next = [...prev];
+      [next[i], next[i + 1]] = [next[i + 1], next[i]];
+      return next;
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
-    const orderArr = getGroupOrderArray();
-    if (orderArr.some((t) => !t)) {
-      setError('Preencha a ordem completa do grupo (1º ao 4º)');
-      return;
-    }
-    if (!champion.trim()) {
-      setError('Selecione ou digite o campeão do mundo');
-      return;
-    }
-    if (totalBrazilGoals === '') {
-      setError('Informe o total de gols do Brasil');
+    if (!champion) {
+      setError('Selecione o campeão do mundo');
       return;
     }
 
     setSubmitting(true);
-
     try {
       const res = await fetch('/api/palpites/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...scores,
-          group_order: orderArr,
-          champion: champion.trim(),
-          total_brazil_goals: Number(totalBrazilGoals),
+          group_order: groupOrder,
+          champion,
+          total_brazil_goals: totalBrazilGoals,
         }),
       });
       const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error ?? 'Erro ao enviar palpites');
-        return;
-      }
-
+      if (!res.ok) { setError(data.error ?? 'Erro ao enviar palpites'); return; }
       router.push('/ranking');
     } catch {
       setError('Erro de conexão. Tente novamente.');
@@ -141,186 +179,254 @@ export default function PalpitesPage() {
 
   if (loading) {
     return (
-      <main className="flex-1 flex items-center justify-center">
-        <p className="text-gray-500">Carregando...</p>
-      </main>
+      <div style={{ minHeight: '100dvh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: 'var(--font-manrope)', color: t.inkMuted }}>Carregando...</div>
+      </div>
     );
   }
 
-  if (locked && !alreadySubmitted) {
-    return (
-      <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm text-center">
-          <CardHeader>
-            <CardTitle>Palpites encerrados</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-gray-600">O prazo para envio de palpites foi encerrado.</p>
-            <a href="/ranking" className="block text-green-700 hover:underline">
-              Ver ranking →
-            </a>
-          </CardContent>
-        </Card>
-      </main>
-    );
-  }
-
-  if (alreadySubmitted) {
-    return (
-      <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm text-center">
-          <CardHeader>
-            <CardTitle>Palpites enviados! ✅</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-gray-600">
-              Você já enviou seus palpites. Não é possível alterar após o envio.
-            </p>
-            <a href="/ranking" className="block text-green-700 hover:underline font-medium">
-              Ver ranking atual →
-            </a>
-          </CardContent>
-        </Card>
-      </main>
-    );
-  }
+  if (locked && !alreadySubmitted) return <LockedScreen />;
+  if (alreadySubmitted) return <SubmittedScreen />;
 
   return (
-    <main className="flex-1 p-4 pb-8">
-      <div className="w-full max-w-lg mx-auto space-y-6">
-        <div className="text-center space-y-1">
-          <div className="text-3xl">⚽🇧🇷</div>
-          <h1 className="text-xl font-bold text-green-800">Seus Palpites</h1>
-          <p className="text-gray-500 text-sm">Preencha tudo e envie. Não é possível alterar depois.</p>
-        </div>
+    <div style={{ minHeight: '100dvh', background: t.bg, display: 'flex', flexDirection: 'column' }}>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Partidas */}
-          {[
-            { label: 'Brasil vs Marrocos', key: 'brazil_morocco' },
-            { label: 'Brasil vs Haiti', key: 'brazil_haiti' },
-            { label: 'Brasil vs Escócia', key: 'brazil_scotland' },
-          ].map(({ label, key }) => (
-            <Card key={key}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">{label}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-gray-500">Brasil</Label>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="0"
-                      className="text-center text-lg font-bold"
-                      value={scores[`${key}_brazil_goals` as keyof typeof scores]}
-                      onChange={(e) => setScore(`${key}_brazil_goals` as keyof typeof scores, e.target.value)}
-                      required
-                    />
-                  </div>
-                  <span className="text-xl font-bold text-gray-400 mt-5">×</span>
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs text-gray-500">Adversário</Label>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="0"
-                      className="text-center text-lg font-bold"
-                      value={scores[`${key}_opponent_goals` as keyof typeof scores]}
-                      onChange={(e) => setScore(`${key}_opponent_goals` as keyof typeof scores, e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-
-          {/* Ordem do grupo */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Ordem final do Grupo do Brasil</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {POSITIONS.map((pos, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className="w-6 text-sm font-bold text-gray-600">{pos}</span>
-                  <Select
-                    value={groupOrder[String(i)] || ''}
-                    onValueChange={(val) => { if (val) setGroupPosition(String(i), val); }}
-                  >
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Selecionar time..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(groupOrder[String(i)]
-                        ? [groupOrder[String(i)], ...getAvailableTeams(String(i))]
-                        : getAvailableTeams(String(i))
-                      ).map((team) => (
-                        <SelectItem key={team} value={team}>{team}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Campeão */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Campeão do Mundo 🏆</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Input
-                type="text"
-                placeholder="Ex: Brasil, Argentina, França..."
-                value={champion}
-                onChange={(e) => setChampion(e.target.value)}
-                required
-              />
-            </CardContent>
-          </Card>
-
-          {/* Total gols Brasil */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Total de gols do Brasil no torneio</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="Ex: 12"
-                value={totalBrazilGoals}
-                onChange={(e) => setTotalBrazilGoals(e.target.value.replace(/\D/g, '').slice(0, 2))}
-                className="text-center text-lg font-bold"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-2">Usado como critério de desempate</p>
-            </CardContent>
-          </Card>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-3">
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          )}
-
-          <Button
-            type="submit"
-            className="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 text-base"
-            disabled={submitting}
-          >
-            {submitting ? 'Enviando...' : 'Enviar Palpites ⚽'}
-          </Button>
-
-          <p className="text-xs text-center text-gray-400">
-            Ao enviar, seus palpites são definitivos e não podem ser alterados.
-          </p>
-        </form>
+      {/* Top bar */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 10, background: t.bg, borderBottom: `1px solid ${t.line}` }}>
+        <PhoneHeader rankingHref="/ranking" title="Palpites" />
       </div>
-    </main>
+
+      {/* Page hero strip */}
+      <div style={{
+        position: 'relative', overflow: 'hidden',
+        background: t.primary, color: t.primaryInk,
+        padding: '20px 24px 18px',
+      }}>
+        <BgStripes opacity={0.12} />
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <h1 style={{
+            fontFamily: 'var(--font-anton)', fontSize: 36,
+            margin: 0, letterSpacing: 0.4, lineHeight: 1,
+            textTransform: 'uppercase',
+          }}>
+            Seus Palpites
+          </h1>
+          <p style={{
+            fontFamily: 'var(--font-manrope)', fontSize: 13.5,
+            margin: '6px 0 0', opacity: 0.9, lineHeight: 1.4,
+          }}>
+            Preencha tudo e envie — não é possível alterar depois.
+          </p>
+        </div>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} style={{ flex: 1, padding: '16px 14px 120px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* ── Matches ─────────────────────────────────────────────────── */}
+        {MATCHES.map((match) => {
+          const bKey = `${match.id}_brazil_goals` as keyof typeof scores;
+          const oKey = `${match.id}_opponent_goals` as keyof typeof scores;
+          return (
+            <SectionCard key={match.id}>
+              {/* Match header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <Flag team={match.home} size={28} />
+                <div>
+                  <div style={{ fontFamily: 'var(--font-anton)', fontSize: 17, color: t.ink, letterSpacing: 0.3, lineHeight: 1 }}>
+                    {match.label}
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, color: t.inkMuted, marginTop: 2 }}>
+                    {match.when} · {match.stage}
+                  </div>
+                </div>
+                <div style={{ marginLeft: 'auto' }}><Flag team={match.away} size={28} /></div>
+              </div>
+
+              {/* Score steppers */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 700, color: t.inkMuted }}>Brasil</div>
+                  <ScoreStepper value={scores[bKey] as number} onChange={(v) => setScores((p) => ({ ...p, [bKey]: v }))} />
+                </div>
+                <div style={{ fontFamily: 'var(--font-anton)', fontSize: 26, color: hexA(t.ink, 0.3), paddingTop: 18 }}>×</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 700, color: t.inkMuted }}>
+                    {TEAM_NAMES[match.away]}
+                  </div>
+                  <ScoreStepper value={scores[oKey] as number} onChange={(v) => setScores((p) => ({ ...p, [oKey]: v }))} accent={t.accent} />
+                </div>
+              </div>
+            </SectionCard>
+          );
+        })}
+
+        {/* ── Group order ─────────────────────────────────────────────── */}
+        <SectionCard>
+          <Label>Ordem final do Grupo A</Label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {groupOrder.map((team, i) => (
+              <div key={team} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                background: i === 0 ? hexA(t.accent, 0.18) : i === 1 ? hexA(t.primary, 0.07) : hexA(t.ink, 0.04),
+                borderRadius: 12, padding: '10px 12px',
+                border: `1px solid ${i === 0 ? hexA(t.accent, 0.5) : t.line}`,
+              }}>
+                {/* Position badge */}
+                <div style={{
+                  width: 26, height: 26, borderRadius: 999,
+                  background: i === 0 ? t.accent : i < 2 ? t.primary : hexA(t.ink, 0.12),
+                  color: i === 0 ? t.accentInk : i < 2 ? t.primaryInk : t.inkMuted,
+                  fontFamily: 'var(--font-anton)', fontSize: 14,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}>
+                  {i + 1}
+                </div>
+
+                <Flag team={team} size={30} />
+                <div style={{ flex: 1, fontFamily: 'var(--font-manrope)', fontSize: 14, fontWeight: 700, color: t.ink }}>
+                  {TEAM_NAMES[team]}
+                </div>
+
+                {/* ↑↓ buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <button
+                    type="button"
+                    onClick={() => moveUp(i)}
+                    disabled={i === 0}
+                    style={{
+                      width: 28, height: 28, borderRadius: 8, border: `1px solid ${t.line}`,
+                      background: i === 0 ? 'transparent' : t.surface,
+                      color: i === 0 ? hexA(t.ink, 0.2) : t.ink,
+                      cursor: i === 0 ? 'default' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                      <path d="M4 10l4-4 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveDown(i)}
+                    disabled={i === groupOrder.length - 1}
+                    style={{
+                      width: 28, height: 28, borderRadius: 8, border: `1px solid ${t.line}`,
+                      background: i === groupOrder.length - 1 ? 'transparent' : t.surface,
+                      color: i === groupOrder.length - 1 ? hexA(t.ink, 0.2) : t.ink,
+                      cursor: i === groupOrder.length - 1 ? 'default' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+
+        {/* ── Champion ─────────────────────────────────────────────────── */}
+        <SectionCard>
+          <Label>Campeão do Mundo 🏆</Label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            {CHAMPION_OPTIONS.map((code) => {
+              const selected = champion === code;
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => setChampion(code)}
+                  style={{
+                    border: `2px solid ${selected ? t.primary : t.line}`,
+                    borderRadius: 14,
+                    background: selected ? hexA(t.primary, 0.1) : t.surface,
+                    padding: '10px 6px',
+                    cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                    boxShadow: selected ? `0 0 0 2px ${t.primary}` : 'none',
+                    transition: 'all 0.12s',
+                  }}
+                >
+                  <Flag team={code} size={44} />
+                  <div style={{
+                    fontFamily: 'var(--font-manrope)', fontSize: 11.5, fontWeight: 700,
+                    color: selected ? t.primary : t.ink,
+                  }}>
+                    {TEAM_NAMES[code]}
+                  </div>
+                  {selected && (
+                    <div style={{
+                      width: 16, height: 16, borderRadius: 999, background: t.primary,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </SectionCard>
+
+        {/* ── Total Brazil goals ────────────────────────────────────────── */}
+        <SectionCard>
+          <Label>Total de gols do Brasil no torneio</Label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+            <ScoreStepper value={totalBrazilGoals} onChange={setTotalBrazilGoals} />
+          </div>
+          <div style={{
+            marginTop: 10, fontFamily: 'var(--font-manrope)', fontSize: 12,
+            color: t.inkMuted, textAlign: 'center',
+          }}>
+            Usado como critério de desempate
+          </div>
+        </SectionCard>
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            background: hexA(t.danger, 0.08), border: `1px solid ${hexA(t.danger, 0.3)}`,
+            borderRadius: 12, padding: '12px 14px',
+            fontFamily: 'var(--font-manrope)', fontSize: 13.5, color: t.danger, fontWeight: 700,
+          }}>
+            {error}
+          </div>
+        )}
+      </form>
+
+      {/* Sticky submit bar */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20,
+        background: t.bg, borderTop: `1px solid ${t.line}`,
+        padding: '12px 16px 20px',
+      }}>
+        <button
+          onClick={handleSubmit as unknown as React.MouseEventHandler<HTMLButtonElement>}
+          disabled={submitting}
+          style={{
+            width: '100%', background: submitting ? hexA(t.primary, 0.5) : t.primary,
+            color: t.primaryInk, border: 'none', borderRadius: 16,
+            padding: '18px 0',
+            fontFamily: 'var(--font-anton)', fontSize: 22, letterSpacing: 0.5,
+            cursor: submitting ? 'not-allowed' : 'pointer',
+            boxShadow: submitting ? 'none' : `0 4px 0 ${t.primaryDeep}`,
+            transition: 'all 0.15s',
+          }}
+        >
+          {submitting ? 'Enviando...' : 'Enviar Palpites ⚽'}
+        </button>
+        <div style={{
+          textAlign: 'center', marginTop: 8,
+          fontFamily: 'var(--font-manrope)', fontSize: 11, color: t.inkMuted,
+        }}>
+          Ao enviar, seus palpites são definitivos.
+        </div>
+      </div>
+    </div>
   );
 }

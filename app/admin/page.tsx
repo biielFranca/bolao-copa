@@ -1,18 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -21,15 +9,181 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
+import { theme, hexA } from '@/lib/design-tokens';
+import { BrandMark } from '@/components/ui/brand-mark';
+import { BgStripes } from '@/components/ui/bg-stripes';
 import type { Participant, Prediction, MatchResult, TournamentResult, AppSettings } from '@/lib/types';
 
+const t = theme;
 const GROUP_TEAMS = ['Brasil', 'Marrocos', 'Haiti', 'Escócia'];
 
+// ─── Small helpers ─────────────────────────────────────────────────────────────
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 800,
+      letterSpacing: 1.4, color: t.inkMuted, textTransform: 'uppercase', marginBottom: 6,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      background: t.surface, borderRadius: 18, border: `1px solid ${t.line}`,
+      padding: '16px 14px', ...style,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function CardTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontFamily: 'var(--font-anton)', fontSize: 18, color: t.ink,
+      letterSpacing: 0.3, marginBottom: 14, lineHeight: 1,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function NumberInput({
+  value, onChange, placeholder = '0',
+}: {
+  value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
+  return (
+    <input
+      type="text" inputMode="numeric" placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 2))}
+      style={{
+        width: '100%', border: `1.5px solid ${t.line}`, borderRadius: 10,
+        padding: '8px 12px', fontFamily: 'var(--font-manrope)', fontSize: 16,
+        fontWeight: 700, textAlign: 'center', color: t.ink, background: t.surface,
+        outline: 'none', boxSizing: 'border-box',
+      }}
+    />
+  );
+}
+
+function TextInput({
+  value, onChange, placeholder = '', type = 'text',
+}: {
+  value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+}) {
+  return (
+    <input
+      type={type} placeholder={placeholder} value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: '100%', border: `1.5px solid ${t.line}`, borderRadius: 10,
+        padding: '10px 12px', fontFamily: 'var(--font-manrope)', fontSize: 15,
+        color: t.ink, background: t.surface, outline: 'none', boxSizing: 'border-box',
+      }}
+    />
+  );
+}
+
+function PrimaryButton({ children, onClick, disabled, style }: {
+  children: React.ReactNode; onClick?: () => void;
+  disabled?: boolean; style?: React.CSSProperties;
+}) {
+  return (
+    <button
+      onClick={onClick} disabled={disabled}
+      style={{
+        background: disabled ? hexA(t.primary, 0.45) : t.primary,
+        color: t.primaryInk, border: 'none', borderRadius: 12,
+        padding: '12px 20px', fontFamily: 'var(--font-anton)', fontSize: 16,
+        letterSpacing: 0.4, cursor: disabled ? 'not-allowed' : 'pointer',
+        boxShadow: disabled ? 'none' : `0 3px 0 ${t.primaryDeep}`,
+        transition: 'all 0.12s', ...style,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── Login screen ──────────────────────────────────────────────────────────────
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) { onLogin(); }
+      else { setError('Senha incorreta'); }
+    } catch { setError('Erro de conexão'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div style={{ minHeight: '100dvh', background: t.bg, display: 'flex', flexDirection: 'column' }}>
+      {/* Hero */}
+      <div style={{ position: 'relative', overflow: 'hidden', background: t.primary, padding: '48px 24px 36px', textAlign: 'center' }}>
+        <BgStripes opacity={0.12} />
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <BrandMark size={52} />
+          <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 800, letterSpacing: 2, color: hexA(t.primaryInk, 0.75), textTransform: 'uppercase' }}>
+            Lau Burguer · Copa 2026
+          </div>
+          <h1 style={{ fontFamily: 'var(--font-anton)', fontSize: 32, margin: 0, color: t.primaryInk, letterSpacing: 0.4, lineHeight: 1 }}>
+            PAINEL ADMIN
+          </h1>
+        </div>
+      </div>
+
+      {/* Form */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '28px 20px' }}>
+        <div style={{ width: '100%', maxWidth: 360 }}>
+          <Card>
+            <CardTitle>Entrar</CardTitle>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <Label>Senha de administrador</Label>
+                <input
+                  type="password" value={password} autoFocus required
+                  onChange={(e) => { setError(''); setPassword(e.target.value); }}
+                  style={{
+                    width: '100%', border: `1.5px solid ${error ? t.danger : t.line}`, borderRadius: 10,
+                    padding: '12px 14px', fontFamily: 'var(--font-manrope)', fontSize: 16,
+                    color: t.ink, background: t.surface, outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+                {error && (
+                  <div style={{ marginTop: 6, fontFamily: 'var(--font-manrope)', fontSize: 12.5, color: t.danger, fontWeight: 700 }}>
+                    {error}
+                  </div>
+                )}
+              </div>
+              <PrimaryButton style={{ width: '100%' }} disabled={loading}>
+                {loading ? 'Entrando...' : 'Entrar →'}
+              </PrimaryButton>
+            </form>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dashboard ─────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
 
   // Data
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -38,8 +192,8 @@ export default function AdminPage() {
   const [tournament, setTournament] = useState<TournamentResult | null>(null);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'resultados' | 'participantes' | 'palpites'>('resultados');
 
-  // Results form
   const [matchForm, setMatchForm] = useState({
     brazil_morocco_brazil_goals: '',
     brazil_morocco_opponent_goals: '',
@@ -89,7 +243,6 @@ export default function AdminPage() {
     setTournament(tour ?? null);
     setSettings(sett ?? null);
 
-    // Preencher formulário com dados existentes
     if (res) {
       const mr = res.find((r) => r.match_key === 'brazil_morocco');
       const bh = res.find((r) => r.match_key === 'brazil_haiti');
@@ -113,32 +266,10 @@ export default function AdminPage() {
         total_brazil_goals: tour.total_brazil_goals?.toString() ?? '',
       });
     }
-
     setDataLoading(false);
   }, []);
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoginError('');
-    setLoginLoading(true);
-    try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      });
-      if (res.ok) {
-        setAuthed(true);
-        loadData();
-      } else {
-        setLoginError('Senha incorreta');
-      }
-    } catch { setLoginError('Erro de conexão'); }
-    finally { setLoginLoading(false); }
-  }
-
   useEffect(() => {
-    // Verificar se já tem cookie de admin (tentativa silenciosa)
     fetch('/api/admin/recalculate', { method: 'POST' }).then((r) => {
       if (r.ok) { setAuthed(true); loadData(); }
     }).catch(() => {});
@@ -146,12 +277,10 @@ export default function AdminPage() {
 
   async function handleSaveResults(e: React.FormEvent) {
     e.preventDefault();
-    setSavingResults(true);
-    setResultsMsg('');
+    setSavingResults(true); setResultsMsg('');
     try {
       const res = await fetch('/api/admin/results', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...matchForm,
           tournament: {
@@ -162,26 +291,21 @@ export default function AdminPage() {
           },
         }),
       });
-      if (res.ok) { setResultsMsg('Resultados salvos com sucesso!'); loadData(); }
-      else { setResultsMsg('Erro ao salvar resultados'); }
-    } catch { setResultsMsg('Erro de conexão'); }
+      if (res.ok) { setResultsMsg('✅ Resultados salvos!'); loadData(); }
+      else { setResultsMsg('❌ Erro ao salvar'); }
+    } catch { setResultsMsg('❌ Erro de conexão'); }
     finally { setSavingResults(false); }
   }
 
   async function handleToggleLock() {
     const newLocked = !settings?.predictions_locked;
     try {
-      const res = await fetch('/api/admin/lock', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      await fetch('/api/admin/lock', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ locked: newLocked }),
       });
-      if (res.ok) loadData();
+      loadData();
     } catch { /* silencioso */ }
-  }
-
-  async function handleExport() {
-    window.open('/api/admin/export', '_blank');
   }
 
   function getParticipantName(participantId: string) {
@@ -191,8 +315,7 @@ export default function AdminPage() {
   function setGroupPos(idx: number, team: string) {
     setTournamentForm((prev) => {
       const order = [...prev.final_group_order];
-      // remover time de outras posições
-      const cleanedOrder = order.map((t) => (t === team ? '' : t));
+      const cleanedOrder = order.map((item) => (item === team ? '' : item));
       cleanedOrder[idx] = team;
       return { ...prev, final_group_order: cleanedOrder };
     });
@@ -200,148 +323,144 @@ export default function AdminPage() {
 
   function getAvailableTeamsForTournament(idx: number): string[] {
     const taken = tournamentForm.final_group_order.filter((_, i) => i !== idx && tournamentForm.final_group_order[i] !== '');
-    return GROUP_TEAMS.filter((t) => !taken.includes(t));
+    return GROUP_TEAMS.filter((item) => !taken.includes(item));
   }
 
   if (!authed) {
-    return (
-      <main className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle>Admin — Bolão da Copa</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha de administrador</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoFocus
-                  required
-                />
-              </div>
-              {loginError && <p className="text-sm text-red-600">{loginError}</p>}
-              <Button type="submit" className="w-full" disabled={loginLoading}>
-                {loginLoading ? 'Entrando...' : 'Entrar'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </main>
-    );
+    return <LoginScreen onLogin={() => { setAuthed(true); loadData(); }} />;
   }
 
   if (dataLoading) {
     return (
-      <main className="flex-1 flex items-center justify-center">
-        <p className="text-gray-500">Carregando dados...</p>
-      </main>
+      <div style={{ minHeight: '100dvh', background: t.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ fontFamily: 'var(--font-manrope)', color: t.inkMuted }}>Carregando...</div>
+      </div>
     );
   }
 
+  const finalResults = results.filter((r) => r.result_status === 'final').length;
+
   return (
-    <main className="flex-1 p-4 pb-8">
-      <div className="w-full max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-800">Painel Admin — Bolão da Copa</h1>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              Exportar CSV
-            </Button>
-            <Button
-              size="sm"
-              variant={settings?.predictions_locked ? 'destructive' : 'outline'}
-              onClick={handleToggleLock}
-            >
-              {settings?.predictions_locked ? '🔒 Palpites bloqueados' : '🔓 Bloquear palpites'}
-            </Button>
+    <div style={{ minHeight: '100dvh', background: t.bg, display: 'flex', flexDirection: 'column' }}>
+
+      {/* Top bar */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        background: t.bg, borderBottom: `1px solid ${t.line}`,
+        padding: '0 16px', height: 56,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <BrandMark size={32} />
+          <span style={{ fontFamily: 'var(--font-anton)', fontSize: 17, color: t.ink, letterSpacing: 0.4 }}>
+            ADMIN
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={() => window.open('/api/admin/export', '_blank')}
+            style={{
+              height: 34, padding: '0 12px', borderRadius: 10,
+              border: `1.5px solid ${t.line}`, background: t.surface,
+              fontFamily: 'var(--font-manrope)', fontWeight: 700, fontSize: 12,
+              cursor: 'pointer', color: t.inkSoft,
+            }}
+          >
+            CSV
+          </button>
+          <button
+            onClick={handleToggleLock}
+            style={{
+              height: 34, padding: '0 12px', borderRadius: 10,
+              border: `1.5px solid ${settings?.predictions_locked ? t.danger : t.line}`,
+              background: settings?.predictions_locked ? hexA(t.danger, 0.08) : t.surface,
+              fontFamily: 'var(--font-manrope)', fontWeight: 700, fontSize: 12,
+              cursor: 'pointer', color: settings?.predictions_locked ? t.danger : t.inkSoft,
+            }}
+          >
+            {settings?.predictions_locked ? '🔒 Bloqueado' : '🔓 Aberto'}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div style={{ padding: '14px 14px 0', display: 'flex', gap: 10 }}>
+        {[
+          { label: 'Participantes', value: participants.length, color: t.primary },
+          { label: 'Palpites', value: predictions.length, color: t.primary },
+          { label: 'Resultados', value: `${finalResults}/3`, color: finalResults === 3 ? t.primary : t.accentInk },
+        ].map((s) => (
+          <div key={s.label} style={{
+            flex: 1, background: t.surface, borderRadius: 14, padding: '12px 10px',
+            border: `1px solid ${t.line}`, textAlign: 'center',
+          }}>
+            <div style={{ fontFamily: 'var(--font-anton)', fontSize: 26, color: s.color, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10.5, color: t.inkMuted, fontWeight: 700, marginTop: 2 }}>{s.label}</div>
           </div>
-        </div>
+        ))}
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Card>
-            <CardContent className="pt-4 text-center">
-              <div className="text-3xl font-bold text-green-700">{participants.length}</div>
-              <div className="text-sm text-gray-500">Participantes</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-4 text-center">
-              <div className="text-3xl font-bold text-green-700">{predictions.length}</div>
-              <div className="text-sm text-gray-500">Palpites enviados</div>
-            </CardContent>
-          </Card>
-          <Card className="col-span-2 sm:col-span-1">
-            <CardContent className="pt-4 text-center">
-              <div className="text-3xl font-bold text-green-700">
-                {results.filter((r) => r.result_status === 'final').length}/3
-              </div>
-              <div className="text-sm text-gray-500">Resultados finalizados</div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 0, padding: '14px 14px 0', borderBottom: `1px solid ${t.line}`, marginTop: 4 }}>
+        {(['resultados', 'participantes', 'palpites'] as const).map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '8px 14px', border: 'none', background: 'transparent',
+                fontFamily: 'var(--font-manrope)', fontWeight: 700, fontSize: 12.5,
+                letterSpacing: 0.3, textTransform: 'capitalize', cursor: 'pointer',
+                color: active ? t.primary : t.inkMuted,
+                borderBottom: active ? `2px solid ${t.primary}` : '2px solid transparent',
+                marginBottom: -1,
+              }}
+            >
+              {tab}
+            </button>
+          );
+        })}
+      </div>
 
-        {/* Entrada de resultados */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Inserir Resultados</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSaveResults} className="space-y-5">
+      {/* Tab content */}
+      <div style={{ flex: 1, padding: '16px 14px 32px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+        {/* ── Resultados tab ────────────────────────────────────────── */}
+        {activeTab === 'resultados' && (
+          <form onSubmit={handleSaveResults} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Card>
+              <CardTitle>Resultados das Partidas</CardTitle>
               {[
                 { label: 'Brasil vs Marrocos', key: 'brazil_morocco' },
                 { label: 'Brasil vs Haiti', key: 'brazil_haiti' },
                 { label: 'Brasil vs Escócia', key: 'brazil_scotland' },
-              ].map(({ label, key }) => (
-                <div key={key} className="space-y-2">
-                  <Label className="font-semibold">{label}</Label>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <Label className="text-xs text-gray-500">Gols Brasil</Label>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="0"
-                        className="text-center"
+              ].map(({ label, key }, idx) => (
+                <div key={key} style={{ marginBottom: idx < 2 ? 16 : 0 }}>
+                  <Label>{label}</Label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, color: t.inkMuted, marginBottom: 4 }}>Gols Brasil</div>
+                      <NumberInput
                         value={matchForm[`${key}_brazil_goals` as keyof typeof matchForm]}
-                        onChange={(e) =>
-                          setMatchForm((prev) => ({
-                            ...prev,
-                            [`${key}_brazil_goals`]: e.target.value.replace(/\D/g, '').slice(0, 2),
-                          }))
-                        }
+                        onChange={(v) => setMatchForm((p) => ({ ...p, [`${key}_brazil_goals`]: v }))}
                       />
                     </div>
-                    <span className="text-gray-400 mt-4">×</span>
-                    <div className="flex-1">
-                      <Label className="text-xs text-gray-500">Gols Adv.</Label>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="0"
-                        className="text-center"
+                    <div style={{ fontFamily: 'var(--font-anton)', fontSize: 22, color: hexA(t.ink, 0.3), marginTop: 22 }}>×</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, color: t.inkMuted, marginBottom: 4 }}>Gols Adv.</div>
+                      <NumberInput
                         value={matchForm[`${key}_opponent_goals` as keyof typeof matchForm]}
-                        onChange={(e) =>
-                          setMatchForm((prev) => ({
-                            ...prev,
-                            [`${key}_opponent_goals`]: e.target.value.replace(/\D/g, '').slice(0, 2),
-                          }))
-                        }
+                        onChange={(v) => setMatchForm((p) => ({ ...p, [`${key}_opponent_goals`]: v }))}
                       />
                     </div>
-                    <div className="flex-1">
-                      <Label className="text-xs text-gray-500">Status</Label>
+                    <div style={{ flex: 1.4 }}>
+                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, color: t.inkMuted, marginBottom: 4 }}>Status</div>
                       <Select
                         value={matchForm[`${key}_status` as keyof typeof matchForm]}
-                        onValueChange={(val) => {
-                          if (val) setMatchForm((prev) => ({ ...prev, [`${key}_status`]: val }));
-                        }}
+                        onValueChange={(val) => { if (val) setMatchForm((p) => ({ ...p, [`${key}_status`]: val })); }}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger style={{ borderRadius: 10, borderColor: t.line }}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -353,150 +472,170 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
+            </Card>
 
-              {/* Tournament results */}
-              <div className="border-t pt-4 space-y-3">
-                <Label className="font-semibold">Resultado do Torneio</Label>
+            <Card>
+              <CardTitle>Resultado do Torneio</CardTitle>
+              <Label>Ordem final do Grupo A</Label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+                {['1º', '2º', '3º', '4º'].map((pos, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: 'var(--font-manrope)', fontWeight: 700, fontSize: 12, color: t.inkMuted, width: 18, flexShrink: 0 }}>{pos}</span>
+                    <Select
+                      value={tournamentForm.final_group_order[i] ?? ''}
+                      onValueChange={(val) => { if (val) setGroupPos(i, val); }}
+                    >
+                      <SelectTrigger style={{ flex: 1, borderRadius: 10, borderColor: t.line }}>
+                        <SelectValue placeholder="Time..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(tournamentForm.final_group_order[i]
+                          ? [tournamentForm.final_group_order[i]!, ...getAvailableTeamsForTournament(i)]
+                          : getAvailableTeamsForTournament(i)
+                        ).map((team) => (
+                          <SelectItem key={team} value={team}>{team}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div>
-                  <Label className="text-sm text-gray-600">Ordem final do grupo</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-1">
-                    {['1º', '2º', '3º', '4º'].map((pos, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="text-sm font-medium w-6">{pos}</span>
-                        <Select
-                          value={tournamentForm.final_group_order[i] ?? ''}
-                          onValueChange={(val) => { if (val) setGroupPos(i, val); }}
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Time..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(tournamentForm.final_group_order[i]
-                              ? [tournamentForm.final_group_order[i]!, ...getAvailableTeamsForTournament(i)]
-                              : getAvailableTeamsForTournament(i)
-                            ).map((team) => (
-                              <SelectItem key={team} value={team}>{team}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                  <Label>Campeão do Mundo</Label>
+                  <TextInput
+                    value={tournamentForm.champion}
+                    onChange={(v) => setTournamentForm((p) => ({ ...p, champion: v }))}
+                    placeholder="Ex: Brasil"
+                  />
+                </div>
+                <div>
+                  <Label>Gols Brasil (total)</Label>
+                  <NumberInput
+                    value={tournamentForm.total_brazil_goals}
+                    onChange={(v) => setTournamentForm((p) => ({ ...p, total_brazil_goals: v }))}
+                    placeholder="Ex: 12"
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {resultsMsg && (
+              <div style={{
+                background: resultsMsg.startsWith('✅') ? hexA(t.primary, 0.08) : hexA(t.danger, 0.08),
+                border: `1px solid ${resultsMsg.startsWith('✅') ? hexA(t.primary, 0.3) : hexA(t.danger, 0.3)}`,
+                borderRadius: 12, padding: '10px 14px',
+                fontFamily: 'var(--font-manrope)', fontSize: 13.5, fontWeight: 700,
+                color: resultsMsg.startsWith('✅') ? t.primary : t.danger,
+              }}>
+                {resultsMsg}
+              </div>
+            )}
+
+            <PrimaryButton style={{ width: '100%' }} disabled={savingResults}>
+              {savingResults ? 'Salvando...' : 'Salvar Resultados'}
+            </PrimaryButton>
+          </form>
+        )}
+
+        {/* ── Participantes tab ─────────────────────────────────────── */}
+        {activeTab === 'participantes' && (
+          <Card>
+            <CardTitle>Participantes ({participants.length})</CardTitle>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {participants.length === 0 && (
+                <div style={{ fontFamily: 'var(--font-manrope)', color: t.inkMuted, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
+                  Nenhum participante ainda.
+                </div>
+              )}
+              {participants.map((p) => {
+                const hasPred = predictions.some((pr) => pr.participant_id === p.id);
+                return (
+                  <div key={p.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 12px', borderRadius: 12,
+                    background: hexA(t.ink, 0.04), border: `1px solid ${t.line}`,
+                  }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 999,
+                      background: t.primary, color: t.primaryInk,
+                      fontFamily: 'var(--font-anton)', fontSize: 14,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      {p.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'var(--font-manrope)', fontWeight: 700, fontSize: 13.5, color: t.ink }}>{p.name}</div>
+                      <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, color: t.inkMuted }}>{p.phone}</div>
+                    </div>
+                    <div style={{
+                      fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 700,
+                      padding: '3px 9px', borderRadius: 999,
+                      background: hasPred ? hexA(t.primary, 0.1) : hexA(t.ink, 0.06),
+                      color: hasPred ? t.primary : t.inkMuted,
+                    }}>
+                      {hasPred ? '✅ Palpitou' : 'Sem palpite'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {/* ── Palpites tab ─────────────────────────────────────────── */}
+        {activeTab === 'palpites' && (
+          <Card>
+            <CardTitle>Palpites ({predictions.length})</CardTitle>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {predictions.length === 0 && (
+                <div style={{ fontFamily: 'var(--font-manrope)', color: t.inkMuted, fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
+                  Nenhum palpite enviado ainda.
+                </div>
+              )}
+              {predictions.map((p) => (
+                <div key={p.id} style={{
+                  borderRadius: 14, border: `1px solid ${t.line}`,
+                  background: hexA(t.ink, 0.03), padding: '12px 14px',
+                }}>
+                  <div style={{ fontFamily: 'var(--font-manrope)', fontWeight: 800, fontSize: 13.5, color: t.ink, marginBottom: 8 }}>
+                    {getParticipantName(p.participant_id)}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 8 }}>
+                    {[
+                      { label: 'Bra×Mar', bg: p.brazil_morocco_brazil_goals, op: p.brazil_morocco_opponent_goals },
+                      { label: 'Bra×Hai', bg: p.brazil_haiti_brazil_goals, op: p.brazil_haiti_opponent_goals },
+                      { label: 'Bra×Esc', bg: p.brazil_scotland_brazil_goals, op: p.brazil_scotland_opponent_goals },
+                    ].map((m) => (
+                      <div key={m.label} style={{
+                        background: t.surface, borderRadius: 10, padding: '6px 8px', textAlign: 'center',
+                        border: `1px solid ${t.line}`,
+                      }}>
+                        <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, color: t.inkMuted, marginBottom: 2 }}>{m.label}</div>
+                        <div style={{ fontFamily: 'var(--font-anton)', fontSize: 18, color: t.ink }}>
+                          {m.bg ?? '?'}×{m.op ?? '?'}
+                        </div>
                       </div>
                     ))}
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-sm">Campeão do Mundo</Label>
-                    <Input
-                      placeholder="Ex: Brasil"
-                      value={tournamentForm.champion}
-                      onChange={(e) => setTournamentForm((prev) => ({ ...prev, champion: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm">Total gols Brasil</Label>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="Ex: 14"
-                      value={tournamentForm.total_brazil_goals}
-                      onChange={(e) =>
-                        setTournamentForm((prev) => ({
-                          ...prev,
-                          total_brazil_goals: e.target.value.replace(/\D/g, '').slice(0, 2),
-                        }))
-                      }
-                    />
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 700, background: hexA(t.accent, 0.2), color: t.accentInk, borderRadius: 999, padding: '2px 9px' }}>
+                      🏆 {p.champion ?? '—'}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 700, background: hexA(t.primary, 0.1), color: t.primary, borderRadius: 999, padding: '2px 9px' }}>
+                      ⚽ {p.total_brazil_goals ?? '—'} gols
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, color: t.inkMuted, marginLeft: 'auto' }}>
+                      {new Date(p.submitted_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 </div>
-              </div>
-
-              {resultsMsg && (
-                <p className={`text-sm ${resultsMsg.includes('Erro') ? 'text-red-600' : 'text-green-600'}`}>
-                  {resultsMsg}
-                </p>
-              )}
-
-              <Button type="submit" disabled={savingResults} className="w-full">
-                {savingResults ? 'Salvando...' : 'Salvar Resultados'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Participantes */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Participantes ({participants.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Palpitou?</TableHead>
-                  <TableHead>Cadastro</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {participants.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.name}</TableCell>
-                    <TableCell>{p.phone}</TableCell>
-                    <TableCell>
-                      {predictions.some((pr) => pr.participant_id === p.id) ? '✅' : '—'}
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {new Date(p.created_at).toLocaleDateString('pt-BR')}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Palpites */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Palpites enviados ({predictions.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Participante</TableHead>
-                    <TableHead>Bra×Mar</TableHead>
-                    <TableHead>Bra×Hai</TableHead>
-                    <TableHead>Bra×Esc</TableHead>
-                    <TableHead>Campeão</TableHead>
-                    <TableHead>Gols Bra</TableHead>
-                    <TableHead>Enviado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {predictions.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{getParticipantName(p.participant_id)}</TableCell>
-                      <TableCell>{p.brazil_morocco_brazil_goals}×{p.brazil_morocco_opponent_goals}</TableCell>
-                      <TableCell>{p.brazil_haiti_brazil_goals}×{p.brazil_haiti_opponent_goals}</TableCell>
-                      <TableCell>{p.brazil_scotland_brazil_goals}×{p.brazil_scotland_opponent_goals}</TableCell>
-                      <TableCell>{p.champion ?? '—'}</TableCell>
-                      <TableCell>{p.total_brazil_goals ?? '—'}</TableCell>
-                      <TableCell className="text-sm text-gray-500">
-                        {new Date(p.submitted_at).toLocaleString('pt-BR')}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          </Card>
+        )}
       </div>
-    </main>
+    </div>
   );
 }
