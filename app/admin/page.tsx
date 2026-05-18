@@ -218,6 +218,7 @@ export default function AdminPage() {
 
   const [savingResults, setSavingResults] = useState(false);
   const [resultsMsg, setResultsMsg] = useState('');
+  const [syncMsg, setSyncMsg] = useState('');
 
   const loadData = useCallback(async () => {
     setDataLoading(true);
@@ -297,6 +298,21 @@ export default function AdminPage() {
     finally { setSavingResults(false); }
   }
 
+  async function handleSyncResults() {
+    setSyncMsg('⏳ Buscando...');
+    try {
+      const res = await fetch('/api/admin/sync-results', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncMsg(data.updated?.length ? `✅ ${data.updated.join(', ')}` : '✅ Nenhum resultado novo');
+        loadData();
+      } else {
+        setSyncMsg(`❌ ${data.error ?? 'Erro'}`);
+      }
+    } catch { setSyncMsg('❌ Erro de conexão'); }
+    setTimeout(() => setSyncMsg(''), 5000);
+  }
+
   async function handleToggleLock() {
     const newLocked = !settings?.predictions_locked;
     try {
@@ -357,6 +373,23 @@ export default function AdminPage() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {syncMsg && (
+            <span style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, color: t.inkSoft }}>
+              {syncMsg}
+            </span>
+          )}
+          <button
+            onClick={handleSyncResults}
+            title="Buscar resultados na api-football agora"
+            style={{
+              height: 34, padding: '0 12px', borderRadius: 10,
+              border: `1.5px solid ${t.primary}`, background: hexA(t.primary, 0.08),
+              fontFamily: 'var(--font-manrope)', fontWeight: 700, fontSize: 12,
+              cursor: 'pointer', color: t.primary,
+            }}
+          >
+            ⚽ Sync
+          </button>
           <button
             onClick={() => window.open('/api/admin/export', '_blank')}
             style={{
