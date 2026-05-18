@@ -1,5 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server';
-import { calculateScores } from '@/lib/scoring';
+import { calculateScores, calculateBracketScores } from '@/lib/scoring';
 import { theme, hexA } from '@/lib/design-tokens';
 import Link from 'next/link';
 
@@ -152,16 +152,24 @@ function PodiumCard({
 export default async function RankingPage() {
   const supabase = createServiceClient();
 
-  const [{ data: predictions }, { data: results }, { data: tournament }] = await Promise.all([
+  const [{ data: predictions }, { data: results }, { data: tournament }, { data: bracketPredictions }, { data: bracketResults }] = await Promise.all([
     supabase
       .from('predictions')
       .select('*, participants(name)')
       .order('submitted_at', { ascending: true }),
     supabase.from('results').select('*'),
     supabase.from('tournament_results').select('*').limit(1).single(),
+    supabase.from('bracket_predictions').select('participant_id, picks'),
+    supabase.from('bracket_results').select('match_id, winner, result_status'),
   ]);
 
   const hasResults = results?.some((r) => r.result_status === 'final') ?? false;
+
+  // Bracket scores
+  const bracketScores = calculateBracketScores(
+    (bracketPredictions ?? []) as Array<{ participant_id: string; picks: Record<string, string> }>,
+    (bracketResults ?? []) as Array<{ match_id: string; winner: string | null; result_status: string }>
+  );
 
   type SupabasePrediction = {
     participant_id: string;
@@ -184,7 +192,7 @@ export default async function RankingPage() {
     participant_name: p.participants?.name ?? 'Desconhecido',
   }));
 
-  const ranked =
+  const baseRanked =
     hasResults && results
       ? calculateScores(predictionsWithNames, results, tournament ?? null)
       : predictionsWithNames.map((p, i) => ({
@@ -198,6 +206,25 @@ export default async function RankingPage() {
           brazilGoalsDiff: null as number | null,
           submittedAt: p.submitted_at,
         }));
+
+  // Add bracket scores to each participant
+  const ranked = baseRanked.map((p) => ({
+    ...p,
+    totalScore: p.totalScore + (bracketScores[p.participantId] ?? 0),
+  }));
+
+  // Re-sort after adding bracket points
+  ranked.sort((a, b) => {
+    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+    if (b.correctChampion !== a.correctChampion) return b.correctChampion ? 1 : -1;
+    if (b.exactScoreCount !== a.exactScoreCount) return b.exactScoreCount - a.exactScoreCount;
+    if (b.correctBrazilPosition !== a.correctBrazilPosition) return b.correctBrazilPosition ? 1 : -1;
+    const aDiff = a.brazilGoalsDiff ?? Infinity;
+    const bDiff = b.brazilGoalsDiff ?? Infinity;
+    if (aDiff !== bDiff) return aDiff - bDiff;
+    return new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
+  });
+  ranked.forEach((p, i) => { p.position = i + 1; });
 
   const [first, second, third, ...rest] = ranked;
 

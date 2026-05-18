@@ -12,6 +12,15 @@ import { createClient } from '@/lib/supabase/client';
 import { theme, hexA } from '@/lib/design-tokens';
 import { BrandMark } from '@/components/ui/brand-mark';
 import { BgStripes } from '@/components/ui/bg-stripes';
+import { TeamBadge } from '@/components/ui/team-badge';
+import {
+  GROUPS,
+  TEAMS_32,
+  DEFAULT_STANDINGS,
+  ROUND_LABEL_FULL,
+  computeBracket,
+  type BracketMatch,
+} from '@/lib/bracket-data';
 import type { Participant, Prediction, MatchResult, TournamentResult, AppSettings } from '@/lib/types';
 
 const t = theme;
@@ -220,6 +229,14 @@ export default function AdminPage() {
   const [resultsMsg, setResultsMsg] = useState('');
   const [syncMsg, setSyncMsg] = useState('');
 
+  // Bracket state
+  const [bracketStandings, setBracketStandings] = useState<Record<string, { first: string; second: string }>>(
+    Object.fromEntries(GROUPS.map((g) => [g.id, { first: DEFAULT_STANDINGS[g.id]?.[0] ?? '', second: DEFAULT_STANDINGS[g.id]?.[1] ?? '' }]))
+  );
+  const [bracketResults, setBracketResults] = useState<Record<string, string>>({});
+  const [savingBracket, setSavingBracket] = useState(false);
+  const [bracketMsg, setBracketMsg] = useState('');
+
   const loadData = useCallback(async () => {
     setDataLoading(true);
     const supabase = createClient();
@@ -230,12 +247,16 @@ export default function AdminPage() {
       { data: res },
       { data: tour },
       { data: sett },
+      { data: bStandings },
+      { data: bResults },
     ] = await Promise.all([
       supabase.from('participants').select('*').order('created_at', { ascending: false }),
       supabase.from('predictions').select('*').order('submitted_at', { ascending: true }),
       supabase.from('results').select('*'),
       supabase.from('tournament_results').select('*').limit(1).single(),
       supabase.from('app_settings').select('*').limit(1).single(),
+      supabase.from('bracket_standings').select('*'),
+      supabase.from('bracket_results').select('*'),
     ]);
 
     setParticipants(parts ?? []);
@@ -243,6 +264,21 @@ export default function AdminPage() {
     setResults(res ?? []);
     setTournament(tour ?? null);
     setSettings(sett ?? null);
+
+    if (bStandings && bStandings.length > 0) {
+      const newBs: Record<string, { first: string; second: string }> = {};
+      for (const s of bStandings as Array<{ group_id: string; first_place: string | null; second_place: string | null }>) {
+        newBs[s.group_id] = { first: s.first_place ?? '', second: s.second_place ?? '' };
+      }
+      setBracketStandings(newBs);
+    }
+    if (bResults && bResults.length > 0) {
+      const newBr: Record<string, string> = {};
+      for (const r of bResults as Array<{ match_id: string; winner: string | null }>) {
+        if (r.winner) newBr[r.match_id] = r.winner;
+      }
+      setBracketResults(newBr);
+    }
 
     if (res) {
       const mr = res.find((r) => r.match_key === 'brazil_morocco');
@@ -275,6 +311,19 @@ export default function AdminPage() {
       if (r.ok) { setAuthed(true); loadData(); }
     }).catch(() => {});
   }, [loadData]);
+
+  async function handleSaveBracket() {
+    setSavingBracket(true); setBracketMsg('');
+    try {
+      const res = await fetch('/api/admin/bracket-results', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ standings: bracketStandings, results: bracketResults }),
+      });
+      if (res.ok) { setBracketMsg('✅ Chave salva e ranking recalculado!'); loadData(); }
+      else { setBracketMsg('❌ Erro ao salvar'); }
+    } catch { setBracketMsg('❌ Erro de conexão'); }
+    finally { setSavingBracket(false); setTimeout(() => setBracketMsg(''), 4000); }
+  }
 
   async function handleSaveResults(e: React.FormEvent) {
     e.preventDefault();
@@ -466,27 +515,15 @@ export default function AdminPage() {
 
         {/* ── Chave tab ─────────────────────────────────────────────── */}
         {activeTab === 'chave' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <Card>
-              <CardTitle>Mata-mata da Copa 2026</CardTitle>
-              <p style={{ fontFamily: 'var(--font-manrope)', fontSize: 13, color: t.inkMuted, margin: '8px 0 0', lineHeight: 1.5 }}>
-                A chave do mata-mata é gerenciada automaticamente pelo cron de sync (⚽ Sync) após cada rodada.
-                O botão atualiza os resultados do Brasil no grupo — os resultados do mata-mata
-                serão integrados em breve.
-              </p>
-              <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: hexA(t.primary, 0.06), border: `1px solid ${hexA(t.primary, 0.2)}` }}>
-                <div style={{ fontFamily: 'var(--font-anton)', fontSize: 15, color: t.primary, letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 8 }}>
-                  Grupo A
-                </div>
-                {['BRA — Brasil', 'MAR — Marrocos', 'HAI — Haiti', 'SCO — Escócia'].map((team, i) => (
-                  <div key={team} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: i < 3 ? `1px dashed ${t.line}` : 'none' }}>
-                    <span style={{ fontFamily: 'var(--font-anton)', fontSize: 13, color: t.inkMuted, width: 20 }}>{i + 1}º</span>
-                    <span style={{ fontFamily: 'var(--font-manrope)', fontSize: 13, fontWeight: 700, color: t.ink }}>{team}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
+          <BracketAdminTab
+            bracketStandings={bracketStandings}
+            setBracketStandings={setBracketStandings}
+            bracketResults={bracketResults}
+            setBracketResults={setBracketResults}
+            onSave={handleSaveBracket}
+            saving={savingBracket}
+            msg={bracketMsg}
+          />
         )}
 
         {/* ── Resultados tab (somente leitura — dados vêm da API) ──── */}
@@ -718,6 +755,198 @@ export default function AdminPage() {
           </Card>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── BracketAdminTab ──────────────────────────────────────────────────────────
+
+type BracketStandingsState = Record<string, { first: string; second: string }>;
+
+function BracketAdminTab({
+  bracketStandings,
+  setBracketStandings,
+  bracketResults,
+  setBracketResults,
+  onSave,
+  saving,
+  msg,
+}: {
+  bracketStandings: BracketStandingsState;
+  setBracketStandings: React.Dispatch<React.SetStateAction<BracketStandingsState>>;
+  bracketResults: Record<string, string>;
+  setBracketResults: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  onSave: () => void;
+  saving: boolean;
+  msg: string;
+}) {
+  // Build standings for computeBracket
+  const standingsForBracket: Record<string, string[]> = {};
+  for (const [gId, { first, second }] of Object.entries(bracketStandings)) {
+    standingsForBracket[gId] = [first, second].filter(Boolean);
+  }
+
+  const bracket = computeBracket(standingsForBracket, bracketResults);
+  const rounds = ['r16', 'qf', 'sf', 'third', 'f'] as const;
+  const matchesByRound: Record<string, BracketMatch[]> = {
+    r16: bracket.r16, qf: bracket.qf, sf: bracket.sf, f: bracket.f, third: bracket.third,
+  };
+
+  function setResult(matchId: string, winner: string) {
+    setBracketResults((prev) => {
+      const np = { ...prev, [matchId]: winner };
+      // Clear downstream
+      const allMatches = Object.values(bracket.matchById);
+      let dirty = true;
+      while (dirty) {
+        dirty = false;
+        for (const m of allMatches) {
+          if (!m.feeds) continue;
+          const sources = m.feeds.map((f) => np[f] ?? null);
+          const eligible = new Set(sources.filter(Boolean));
+          const cur = np[m.id];
+          if (cur && !eligible.has(cur)) { delete np[m.id]; dirty = true; }
+        }
+      }
+      return np;
+    });
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Classificados por grupo */}
+      <div style={{ fontFamily: 'var(--font-anton)', fontSize: 17, color: t.ink, letterSpacing: 0.4, textTransform: 'uppercase' }}>
+        Classificados por grupo
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {GROUPS.map((g) => {
+          const s = bracketStandings[g.id] ?? { first: '', second: '' };
+          return (
+            <div key={g.id} style={{
+              background: t.surface, borderRadius: 12, border: `1px solid ${t.line}`, padding: '10px 12px',
+            }}>
+              <div style={{
+                fontFamily: 'var(--font-anton)', fontSize: 12, color: t.inkMuted,
+                letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 8,
+              }}>
+                Grupo {g.id}
+              </div>
+              {(['first', 'second'] as const).map((pos, pi) => (
+                <div key={pos} style={{ marginBottom: pi === 0 ? 6 : 0 }}>
+                  <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, fontWeight: 700, color: t.inkMuted, marginBottom: 3 }}>
+                    {pi + 1}º lugar
+                  </div>
+                  <select
+                    value={s[pos]}
+                    onChange={(e) => setBracketStandings((prev) => ({ ...prev, [g.id]: { ...prev[g.id], [pos]: e.target.value } }))}
+                    style={{
+                      width: '100%', border: `1px solid ${t.line}`, borderRadius: 8,
+                      padding: '5px 8px', fontFamily: 'var(--font-manrope)', fontSize: 12,
+                      fontWeight: 700, color: t.ink, background: t.surface, outline: 'none',
+                    }}
+                  >
+                    <option value="">— Selecionar —</option>
+                    {g.teams.map((tm) => (
+                      <option key={tm} value={tm}>{TEAMS_32[tm]?.name ?? tm}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Resultados do mata-mata */}
+      <div style={{ fontFamily: 'var(--font-anton)', fontSize: 17, color: t.ink, letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 8 }}>
+        Resultados do mata-mata
+      </div>
+      {rounds.map((r) => {
+        const matches = matchesByRound[r];
+        return (
+          <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{
+              fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 800,
+              letterSpacing: 1.2, color: t.inkMuted, textTransform: 'uppercase',
+            }}>
+              {ROUND_LABEL_FULL[r]}
+            </div>
+            {matches.map((m, i) => {
+              const ready = !!m.a && !!m.b;
+              const winner = bracketResults[m.id] ?? '';
+              return (
+                <div key={m.id} style={{
+                  background: t.surface, borderRadius: 10, border: `1px solid ${t.line}`, padding: '10px 12px',
+                }}>
+                  <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, fontWeight: 800, letterSpacing: 1.2, color: t.inkMuted, textTransform: 'uppercase', marginBottom: 8 }}>
+                    Jogo {i + 1}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {([m.a, m.b] as (string | null)[]).map((tm, idx) => {
+                      const isPicked = winner === tm;
+                      const otherPicked = !!winner && winner !== tm;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => tm && ready && setResult(m.id, tm)}
+                          disabled={!ready || !tm}
+                          style={{
+                            flex: 1, display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '7px 8px',
+                            background: isPicked ? hexA(t.primary, 0.16) : 'transparent',
+                            border: isPicked ? `1.5px solid ${t.primary}` : `1px solid ${t.line}`,
+                            borderRadius: 8,
+                            cursor: ready && tm ? 'pointer' : 'not-allowed',
+                            opacity: !ready || !tm ? 0.45 : 1,
+                            textAlign: 'left',
+                          }}
+                        >
+                          <TeamBadge team={tm} size={22} dim={otherPicked} />
+                          <span style={{
+                            fontFamily: 'var(--font-manrope)', fontSize: 12, fontWeight: 800,
+                            color: otherPicked ? hexA(t.ink, 0.4) : t.ink,
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          }}>
+                            {tm ? (TEAMS_32[tm]?.short ?? tm) : '—'}
+                          </span>
+                          {isPicked && (
+                            <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-anton)', fontSize: 14, color: t.primary }}>✓</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+
+      {/* Save button */}
+      <button
+        onClick={onSave}
+        disabled={saving}
+        style={{
+          marginTop: 4, width: '100%', height: 50, borderRadius: 14, border: 'none',
+          background: saving ? hexA(t.primary, 0.5) : t.primary, color: t.primaryInk,
+          fontFamily: 'var(--font-anton)', fontSize: 18, letterSpacing: 0.4, textTransform: 'uppercase',
+          cursor: saving ? 'not-allowed' : 'pointer',
+          boxShadow: saving ? 'none' : `0 3px 0 ${t.primaryDeep}`,
+        }}
+      >
+        {saving ? 'Salvando...' : 'Salvar e recalcular →'}
+      </button>
+      {msg && (
+        <div style={{
+          padding: '10px 14px', borderRadius: 10,
+          background: msg.startsWith('✅') ? hexA(t.primary, 0.1) : hexA(t.danger, 0.1),
+          color: msg.startsWith('✅') ? t.primary : t.danger,
+          fontFamily: 'var(--font-manrope)', fontSize: 13, fontWeight: 700,
+        }}>
+          {msg}
+        </div>
+      )}
     </div>
   );
 }

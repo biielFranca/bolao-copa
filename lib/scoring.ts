@@ -1,4 +1,5 @@
 import type { MatchResult, TournamentResult, RankedParticipant } from './types';
+import { BRACKET_POINTS } from './bracket-data';
 
 const POINTS_EXACT_SCORE = 5;
 const POINTS_CORRECT_RESULT = 2;
@@ -169,4 +170,51 @@ export function calculateScores(
   });
 
   return scores.map((s, i) => ({ ...s, position: i + 1 }));
+}
+
+// ─── Bracket scoring ──────────────────────────────────────────────────────────
+
+type BracketPredictionRow = {
+  participant_id: string;
+  picks: Record<string, string>; // matchId → teamCode
+};
+
+type BracketResultRow = {
+  match_id: string;
+  winner: string | null;
+  result_status: string;
+};
+
+/**
+ * For each participant's bracket pick, check if the result is `final`
+ * and the winner matches the pick. Uses BRACKET_POINTS for each round.
+ * Returns Record<participantId, pts>.
+ */
+export function calculateBracketScores(
+  bracketPredictions: BracketPredictionRow[],
+  bracketResults: BracketResultRow[]
+): Record<string, number> {
+  const finalResults = new Map<string, string>();
+  for (const r of bracketResults) {
+    if (r.result_status === 'final' && r.winner) {
+      finalResults.set(r.match_id, r.winner);
+    }
+  }
+
+  const scores: Record<string, number> = {};
+
+  for (const pred of bracketPredictions) {
+    let pts = 0;
+    for (const [matchId, pickedTeam] of Object.entries(pred.picks)) {
+      const actualWinner = finalResults.get(matchId);
+      if (actualWinner && actualWinner === pickedTeam) {
+        // Determine round from matchId prefix (e.g. "r16-1" → "r16")
+        const round = matchId.replace(/-\d+$/, '');
+        pts += BRACKET_POINTS[round] ?? 0;
+      }
+    }
+    scores[pred.participant_id] = pts;
+  }
+
+  return scores;
 }
