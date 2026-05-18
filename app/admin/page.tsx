@@ -492,6 +492,36 @@ export default function AdminPage() {
         {/* ── Resultados tab ────────────────────────────────────────── */}
         {activeTab === 'resultados' && (
           <form onSubmit={handleSaveResults} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Botão de sync da API — destaque no topo da aba */}
+            <div style={{
+              background: hexA(t.primary, 0.06),
+              border: `1.5px solid ${hexA(t.primary, 0.25)}`,
+              borderRadius: 14, padding: '12px 14px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-anton)', fontSize: 14, color: t.primary, letterSpacing: 0.4, textTransform: 'uppercase' }}>
+                  Buscar da API
+                </div>
+                <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 11.5, color: t.inkMuted, marginTop: 2 }}>
+                  {syncMsg || 'Puxa placares encerrados da api-football e preenche o formulário'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleSyncResults}
+                style={{
+                  height: 38, padding: '0 16px', borderRadius: 10, border: 'none',
+                  background: t.primary, color: t.primaryInk, flexShrink: 0,
+                  fontFamily: 'var(--font-anton)', fontSize: 15, letterSpacing: 0.4,
+                  cursor: 'pointer', boxShadow: `0 3px 0 ${t.primaryDeep}`,
+                }}
+              >
+                ⚽ Sync
+              </button>
+            </div>
+
             <Card>
               <CardTitle>Resultados das Partidas</CardTitle>
               {[
