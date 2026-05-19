@@ -159,7 +159,7 @@ export default function HomePage() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: 16,
+              gap: 32,
               overflow: 'visible',
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
