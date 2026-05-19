@@ -149,6 +149,35 @@ export default function HomePage() {
                 Dê seus palpites, some pontos e concorra a um combo com Smash Duplo Bacon, Batata 150g e Guaraná na Lau.
               </p>
 
+            </div>
+
+            {/* Right column — foto + botão */}
+            <div style={{
+              width: 155,
+              flexShrink: 0,
+              marginTop: 8,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 16,
+              overflow: 'visible',
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/combo.jpg"
+                alt="Combo Smash Duplo Bacon"
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  display: 'block',
+                  borderRadius: 18,
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
+                  border: '2px solid rgba(255,255,255,0.2)',
+                  transform: 'rotate(331deg)',
+                  transformOrigin: 'center center',
+                }}
+              />
+
               {/* Botão cardápio */}
               <a
                 href="https://app.cardapioweb.com/lau_burguerr"
@@ -170,37 +199,11 @@ export default function HomePage() {
                   boxShadow: '0 3px 0 rgba(0,0,0,0.25)',
                   border: 'none',
                   cursor: 'pointer',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 🍔 Ver cardápio
               </a>
-            </div>
-
-            {/* Right column — foto do combo */}
-            <div style={{
-              width: 155,
-              flexShrink: 0,
-              marginTop: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'visible',
-            }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/assets/combo.jpg"
-                alt="Combo Smash Duplo Bacon"
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  display: 'block',
-                  borderRadius: 18,
-                  boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
-                  border: '2px solid rgba(255,255,255,0.2)',
-                  transform: 'rotate(331deg)',
-                  transformOrigin: 'center center',
-                }}
-              />
             </div>
           </div>
         </div>
