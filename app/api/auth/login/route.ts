@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error || !created) {
-    return NextResponse.json({ error: 'Erro ao criar participante' }, { status: 500 });
+    console.error('[login] insert error:', JSON.stringify(error));
+    return NextResponse.json({ error: 'Erro ao criar participante', detail: error?.message }, { status: 500 });
   }
 
   const token = await createSessionToken({ participantId: created.id, name: created.name });
