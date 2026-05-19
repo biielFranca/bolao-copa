@@ -101,7 +101,7 @@ export default function HomePage() {
         <div style={{ position: 'relative', padding: '70px 24px 0', zIndex: 2 }}>
           {/* Brand column */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
-            <BrandMark size={80} badge={false} />
+            <BrandMark size={100} badge={false} />
             <div style={{
               fontFamily: 'var(--font-anton), Anton, sans-serif',
               fontSize: 16,
