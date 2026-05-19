@@ -415,7 +415,7 @@ export default function HomePage() {
           {[
             { n: '1', t: 'Coloca seu nº' },
             { n: '2', t: 'Chuta os jogos' },
-            { n: '3', t: 'Ganha um incrível combo Smash da Lau Burger' },
+            { n: '3', t: 'Concorra' },
           ].map((s) => (
             <div
               key={s.n}
