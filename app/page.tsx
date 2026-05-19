@@ -197,7 +197,7 @@ export default function HomePage() {
                   borderRadius: 18,
                   boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
                   border: '2px solid rgba(255,255,255,0.2)',
-                  transform: 'rotate(45deg)',
+                  transform: 'rotate(315deg)',
                   transformOrigin: 'center center',
                 }}
               />
