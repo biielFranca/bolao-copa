@@ -98,51 +98,103 @@ export default function HomePage() {
           ★ COPA 2026 · BOLÃO DA LAU · COMBO GRÁTIS ★ COPA 2026 ★
         </div>
 
-        <div style={{ position: 'relative', padding: '70px 24px 0', zIndex: 2 }}>
-          {/* Brand column */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
-            <BrandMark size={100} badge={false} />
+        <div style={{ position: 'relative', padding: '70px 20px 24px', zIndex: 2 }}>
+
+          {/* Two-column layout: left=content, right=combo photo */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+
+            {/* Left column */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Logo + badge */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, marginBottom: 14 }}>
+                <BrandMark size={100} badge={false} />
+                <div style={{
+                  fontFamily: 'var(--font-anton), Anton, sans-serif',
+                  fontSize: 16,
+                  letterSpacing: 1.6,
+                  textTransform: 'uppercase',
+                  background: t.accent,
+                  color: t.accentInk,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  transform: 'rotate(-2deg)',
+                  boxShadow: '0 2px 0 rgba(0,0,0,0.2)',
+                }}>
+                  Bolão da Copa
+                </div>
+              </div>
+
+              {/* Title */}
+              <h1 style={{
+                fontFamily: 'var(--font-anton), Anton, sans-serif',
+                fontSize: 54,
+                lineHeight: 0.92,
+                letterSpacing: -1,
+                margin: 0,
+                whiteSpace: 'pre-line',
+                textTransform: 'uppercase',
+                textShadow: `0 3px 0 ${t.primaryDeep}`,
+              }}>
+                {'Palpite.\nComa.\nGanhe.'}
+              </h1>
+
+              <p style={{
+                fontFamily: 'var(--font-manrope), Manrope, sans-serif',
+                fontSize: 13,
+                lineHeight: 1.4,
+                marginTop: 12,
+                marginBottom: 14,
+                opacity: 0.95,
+              }}>
+                Dê seus palpites, some pontos e concorra a um combo com Smash Duplo Bacon, Batata 150g e Guaraná na Lau.
+              </p>
+
+              {/* Botão cardápio */}
+              <a
+                href="https://app.cardapioweb.com/lau_burguerr"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  background: t.accent,
+                  color: t.accentInk,
+                  fontFamily: 'var(--font-anton), Anton, sans-serif',
+                  fontSize: 15,
+                  letterSpacing: 0.5,
+                  textTransform: 'uppercase',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  textDecoration: 'none',
+                  boxShadow: '0 3px 0 rgba(0,0,0,0.25)',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                🍔 Ver cardápio
+              </a>
+            </div>
+
+            {/* Right column — foto do combo */}
             <div style={{
-              fontFamily: 'var(--font-anton), Anton, sans-serif',
-              fontSize: 16,
-              letterSpacing: 1.6,
-              textTransform: 'uppercase',
-              background: t.accent,
-              color: t.accentInk,
-              padding: '4px 10px',
-              borderRadius: 6,
-              transform: 'rotate(-2deg)',
-              boxShadow: '0 2px 0 rgba(0,0,0,0.2)',
+              width: 155,
+              flexShrink: 0,
+              marginTop: 8,
+              borderRadius: 18,
+              overflow: 'hidden',
+              boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
+              border: '2px solid rgba(255,255,255,0.2)',
+              aspectRatio: '3/4',
             }}>
-              Bolão da Copa
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/assets/combo.jpg"
+                alt="Combo Smash Duplo Bacon"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
             </div>
           </div>
-
-          {/* Title */}
-          <h1 style={{
-            fontFamily: 'var(--font-anton), Anton, sans-serif',
-            fontSize: 64,
-            lineHeight: 0.92,
-            letterSpacing: -1,
-            margin: 0,
-            whiteSpace: 'pre-line',
-            textTransform: 'uppercase',
-            textShadow: `0 3px 0 ${t.primaryDeep}`,
-          }}>
-            {'Palpite.\nComa.\nGanhe.'}
-          </h1>
-
-          <p style={{
-            fontFamily: 'var(--font-manrope), Manrope, sans-serif',
-            fontSize: 15,
-            lineHeight: 1.4,
-            marginTop: 14,
-            marginBottom: 22,
-            opacity: 0.95,
-            maxWidth: 300,
-          }}>
-            Dê seus palpites, some pontos e concorra a um combo com Smash Duplo Bacon, Batata 150g e Guaraná na Lau.
-          </p>
         </div>
       </div>
 
