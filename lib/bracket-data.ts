@@ -1,4 +1,4 @@
-// bracket-data.ts — Mata-mata da Copa: 32 times → R16 → Final
+// bracket-data.ts — Mata-mata da Copa 2026: 32 times → 16avos → Oitavas → Final
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -10,7 +10,7 @@ export type TeamInfo = {
   c3?: string;
 };
 
-export type GroupStandings = Record<string, [string, string]>;
+export type GroupStandings = Record<string, string[]>; // group → [1st, 2nd, 3rd, 4th]
 
 export type BracketPick = Record<string, string>; // matchId → teamCode
 
@@ -24,6 +24,7 @@ export type BracketMatch = {
 };
 
 export type BracketResult = {
+  r32: BracketMatch[];
   r16: BracketMatch[];
   qf: BracketMatch[];
   sf: BracketMatch[];
@@ -88,19 +89,38 @@ export const GROUPS: Array<{ id: string; teams: string[] }> = [
   { id: 'H', teams: ['SUI', 'DEN', 'POL', 'SRB'] },
 ];
 
-// Standard cross-group R16 layout (A1 vs B2, C1 vs D2…)
-export const R16_PAIRS: [string, string][] = [
-  ['A1', 'B2'], ['C1', 'D2'], ['E1', 'F2'], ['G1', 'H2'],
-  ['B1', 'A2'], ['D1', 'C2'], ['F1', 'E2'], ['H1', 'G2'],
+// ─── 2026-style R32 bracket (all 32 seeded from group positions 1–4) ─────────
+//
+// 16 matches: group leaders vs far-group runners-up in the top half;
+// 3rd/4th place slots fill the bottom half.
+//
+export const R32_PAIRS: [string, string][] = [
+  // Top half — 1st vs 2nd cross-bracket
+  ['A1', 'H2'], ['G1', 'B2'],   // → r16-1
+  ['C1', 'F2'], ['E1', 'D2'],   // → r16-2
+  ['B1', 'A2'], ['H1', 'G2'],   // → r16-3
+  ['D1', 'C2'], ['F1', 'E2'],   // → r16-4
+  // Bottom half — 3rd vs 4th cross-bracket
+  ['A3', 'H4'], ['G3', 'B4'],   // → r16-5
+  ['C3', 'F4'], ['E3', 'D4'],   // → r16-6
+  ['B3', 'A4'], ['H3', 'G4'],   // → r16-7
+  ['D3', 'C4'], ['F3', 'E4'],   // → r16-8
 ];
 
-// Default group standings used to seed R16 — admin can override
-export const DEFAULT_STANDINGS: Record<string, [string, string]> = {
-  A: ['BRA', 'MAR'], B: ['ARG', 'JPN'], C: ['FRA', 'USA'], D: ['ESP', 'POR'],
-  E: ['ENG', 'GER'], F: ['NED', 'ITA'], G: ['BEL', 'CRO'], H: ['DEN', 'SUI'],
+// Default standings (all 4 positions, used for seeding before admin sets real results)
+export const DEFAULT_STANDINGS: Record<string, string[]> = {
+  A: ['BRA', 'MAR', 'HAI', 'SCO'],
+  B: ['ARG', 'JPN', 'NGA', 'MEX'],
+  C: ['FRA', 'USA', 'GHA', 'AUS'],
+  D: ['ESP', 'POR', 'KOR', 'EGY'],
+  E: ['ENG', 'GER', 'ECU', 'IRN'],
+  F: ['NED', 'ITA', 'SEN', 'URU'],
+  G: ['BEL', 'CRO', 'COL', 'CRC'],
+  H: ['DEN', 'SUI', 'POL', 'SRB'],
 };
 
 export const ROUND_LABEL: Record<string, string> = {
+  r32: '16avos',
   r16: 'Oitavas',
   qf: 'Quartas',
   sf: 'Semi',
@@ -109,6 +129,7 @@ export const ROUND_LABEL: Record<string, string> = {
 };
 
 export const ROUND_LABEL_FULL: Record<string, string> = {
+  r32: '16avos de final',
   r16: 'Oitavas de final',
   qf: 'Quartas de final',
   sf: 'Semifinais',
@@ -116,26 +137,28 @@ export const ROUND_LABEL_FULL: Record<string, string> = {
   third: 'Disputa do 3º lugar',
 };
 
+// Points per correct pick in each round
 export const BRACKET_POINTS: Record<string, number> = {
+  r32: 1,
   r16: 2,
   qf: 4,
   sf: 6,
   third: 3,
-  f: 0,
+  f: 0,  // champion already worth 10 pts in the group stage prediction
 };
 
 // ─── Pure functions ──────────────────────────────────────────────────────────
 
-export function seedR16(standings: Record<string, string[]>): BracketMatch[] {
-  return R16_PAIRS.map((pair, i) => {
+export function seedR32(standings: Record<string, string[]>): BracketMatch[] {
+  return R32_PAIRS.map((pair, i) => {
     const [pa, pb] = pair;
     const ga = pa[0];
     const posA = Number(pa[1]) - 1;
     const gb = pb[0];
     const posB = Number(pb[1]) - 1;
     return {
-      id: `r16-${i + 1}`,
-      round: 'r16',
+      id: `r32-${i + 1}`,
+      round: 'r32',
       a: standings[ga]?.[posA] ?? null,
       b: standings[gb]?.[posB] ?? null,
       label: `${pa} × ${pb}`,
@@ -143,10 +166,25 @@ export function seedR16(standings: Record<string, string[]>): BracketMatch[] {
   });
 }
 
-const QF_FEEDS: [string, string][] = [
-  ['r16-1', 'r16-2'], ['r16-3', 'r16-4'],
-  ['r16-5', 'r16-6'], ['r16-7', 'r16-8'],
+// R16 feeds from R32 winners (pairs of consecutive R32 matches)
+const R16_FEEDS: [string, string][] = [
+  ['r32-1',  'r32-2'],  // r16-1
+  ['r32-3',  'r32-4'],  // r16-2
+  ['r32-5',  'r32-6'],  // r16-3
+  ['r32-7',  'r32-8'],  // r16-4
+  ['r32-9',  'r32-10'], // r16-5
+  ['r32-11', 'r32-12'], // r16-6
+  ['r32-13', 'r32-14'], // r16-7
+  ['r32-15', 'r32-16'], // r16-8
 ];
+
+const QF_FEEDS: [string, string][] = [
+  ['r16-1', 'r16-2'], // qf-1
+  ['r16-3', 'r16-4'], // qf-2
+  ['r16-5', 'r16-6'], // qf-3
+  ['r16-7', 'r16-8'], // qf-4
+];
+
 const SF_FEEDS: [string, string][] = [['qf-1', 'qf-2'], ['qf-3', 'qf-4']];
 const F_FEEDS: [string, string][] = [['sf-1', 'sf-2']];
 
@@ -154,9 +192,9 @@ export function computeBracket(
   standings: Record<string, string[]>,
   picks: BracketPick
 ): BracketResult {
-  const r16 = seedR16(standings);
+  const r32 = seedR32(standings);
   const matchById: Record<string, BracketMatch> = {};
-  r16.forEach((m) => { matchById[m.id] = m; });
+  r32.forEach((m) => { matchById[m.id] = m; });
 
   const buildRound = (feeds: [string, string][], round: string): BracketMatch[] =>
     feeds.map((feed, i) => {
@@ -173,9 +211,10 @@ export function computeBracket(
       return m;
     });
 
-  const qf = buildRound(QF_FEEDS, 'qf');
-  const sf = buildRound(SF_FEEDS, 'sf');
-  const f = buildRound(F_FEEDS, 'f');
+  const r16 = buildRound(R16_FEEDS, 'r16');
+  const qf  = buildRound(QF_FEEDS,  'qf');
+  const sf  = buildRound(SF_FEEDS,  'sf');
+  const f   = buildRound(F_FEEDS,   'f');
 
   // 3rd place — losers of SF
   const sfLosers = sf.map((m) => {
@@ -191,10 +230,10 @@ export function computeBracket(
   }];
   matchById['third-1'] = third[0];
 
-  return { r16, qf, sf, f, third, matchById };
+  return { r32, r16, qf, sf, f, third, matchById };
 }
 
-// When a pick changes, clear downstream picks that no longer advance.
+// When a pick changes, clear picks whose team can no longer advance.
 export function cascadeClear(
   picks: BracketPick,
   _changedMatchId: string,
@@ -206,8 +245,7 @@ export function cascadeClear(
     dirty = false;
     for (const m of allMatches) {
       if (!m.feeds) continue;
-      const sources = m.feeds.map((f) => np[f] ?? null);
-      const eligible = new Set(sources.filter(Boolean));
+      const eligible = new Set(m.feeds.map((f) => np[f] ?? null).filter(Boolean));
       const cur = np[m.id];
       if (cur && !eligible.has(cur)) {
         delete np[m.id];

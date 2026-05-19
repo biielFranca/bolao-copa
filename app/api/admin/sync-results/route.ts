@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { getAdminSessionFromRequest } from '@/lib/session';
+import { syncGroupStandings } from '@/lib/sync-standings';
 
-const BRAZIL_TEAM_ID = 6;
+const BRAZIL_TEAM_ID     = 6;
 const WORLD_CUP_LEAGUE_ID = 1;
-const SEASON = 2026;
-const API_BASE = 'https://v3.football.api-sports.io';
+const SEASON             = 2026;
+const API_BASE           = 'https://v3.football.api-sports.io';
 
 function getMatchKey(opponentName: string): string | null {
   const n = opponentName.toLowerCase();
-  if (n.includes('morocco') || n.includes('maroc')) return 'brazil_morocco';
-  if (n.includes('haiti'))                           return 'brazil_haiti';
+  if (n.includes('morocco') || n.includes('maroc'))   return 'brazil_morocco';
+  if (n.includes('haiti'))                             return 'brazil_haiti';
   if (n.includes('scotland') || n.includes('ecosse')) return 'brazil_scotland';
   return null;
 }
@@ -26,23 +27,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'API_FOOTBALL_KEY não configurada' }, { status: 500 });
   }
 
-  const res = await fetch(
+  const supabase = createServiceClient();
+  const updated: string[] = [];
+
+  // ── 1. Partidas do Brasil ──────────────────────────────────────────────────
+  const fixturesRes = await fetch(
     `${API_BASE}/fixtures?team=${BRAZIL_TEAM_ID}&season=${SEASON}&league=${WORLD_CUP_LEAGUE_ID}`,
     { headers: { 'x-apisports-key': apiKey }, cache: 'no-store' }
   );
 
-  if (!res.ok) {
-    return NextResponse.json({ error: `api-football retornou ${res.status}` }, { status: 502 });
+  if (!fixturesRes.ok) {
+    return NextResponse.json({ error: `api-football retornou ${fixturesRes.status}` }, { status: 502 });
   }
 
-  const json = await res.json();
-  const fixtures: unknown[] = json.response ?? [];
-
-  const supabase = createServiceClient();
-  const updated: string[] = [];
+  const fixturesJson = await fixturesRes.json();
+  const fixtures: unknown[] = fixturesJson.response ?? [];
 
   for (const fixture of fixtures) {
-    const f = fixture as Record<string, unknown>;
+    const f      = fixture as Record<string, unknown>;
     const status = ((f.fixture as Record<string, unknown>)?.status as Record<string, unknown>)?.short as string;
     if (!['FT', 'AET', 'PEN'].includes(status)) continue;
 
@@ -52,11 +54,11 @@ export async function POST(request: NextRequest) {
 
     let brazilGoals: number, opponentGoals: number, opponentName: string;
     if (homeId === BRAZIL_TEAM_ID) {
-      brazilGoals = goals?.home ?? 0; opponentGoals = goals?.away ?? 0;
-      opponentName = teams?.away?.name as string ?? '';
+      brazilGoals  = goals?.home ?? 0; opponentGoals = goals?.away ?? 0;
+      opponentName = (teams?.away?.name as string) ?? '';
     } else {
-      brazilGoals = goals?.away ?? 0; opponentGoals = goals?.home ?? 0;
-      opponentName = teams?.home?.name as string ?? '';
+      brazilGoals  = goals?.away ?? 0; opponentGoals = goals?.home ?? 0;
+      opponentName = (teams?.home?.name as string) ?? '';
     }
 
     const matchKey = getMatchKey(opponentName);
@@ -70,5 +72,8 @@ export async function POST(request: NextRequest) {
     if (!error) updated.push(`${matchKey} ${brazilGoals}×${opponentGoals}`);
   }
 
-  return NextResponse.json({ success: true, updated });
+  // ── 2. Classificação dos grupos → seeds dos 16avos ────────────────────────
+  const updatedStandings = await syncGroupStandings(supabase, apiKey);
+
+  return NextResponse.json({ success: true, updated, updatedStandings });
 }

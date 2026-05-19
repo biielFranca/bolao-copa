@@ -18,7 +18,7 @@ import { BgStripes } from '@/components/ui/bg-stripes';
 import { TeamBadge } from '@/components/ui/team-badge';
 
 const t = theme;
-const ROUNDS_ORDER = ['r16', 'qf', 'sf', 'third', 'f'] as const;
+const ROUNDS_ORDER = ['r32', 'r16', 'qf', 'sf', 'third', 'f'] as const;
 type Round = typeof ROUNDS_ORDER[number];
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -42,13 +42,23 @@ export default function ChavePage() {
 
       if (standingsRes.ok) {
         const data = await standingsRes.json() as {
-          standings: Array<{ group_id: string; first_place: string | null; second_place: string | null }>;
+          standings: Array<{
+            group_id: string;
+            first_place: string | null;
+            second_place: string | null;
+            third_place: string | null;
+            fourth_place: string | null;
+          }>;
           results: Array<{ match_id: string; winner: string | null }>;
         };
         const newStandings: Record<string, string[]> = { ...DEFAULT_STANDINGS };
         for (const s of data.standings) {
-          if (s.first_place || s.second_place) {
-            newStandings[s.group_id] = [s.first_place ?? '', s.second_place ?? ''].filter(Boolean);
+          const positions = [s.first_place, s.second_place, s.third_place, s.fourth_place].filter(Boolean) as string[];
+          if (positions.length > 0) {
+            // Fill remaining slots from default standings so R32 always has 4 teams
+            const def = DEFAULT_STANDINGS[s.group_id] ?? [];
+            const filled = def.map((d, i) => positions[i] ?? d);
+            newStandings[s.group_id] = filled;
           }
         }
         setStandings(newStandings);
@@ -81,10 +91,11 @@ export default function ChavePage() {
 
   const bracket = useMemo(() => computeBracket(standings, picks), [standings, picks]);
   const allMatches = useMemo(() => [
-    ...bracket.r16, ...bracket.qf, ...bracket.sf, ...bracket.f, ...bracket.third,
+    ...bracket.r32, ...bracket.r16, ...bracket.qf, ...bracket.sf, ...bracket.f, ...bracket.third,
   ], [bracket]);
 
   const matchesByRound: Record<Round, BracketMatch[]> = {
+    r32: bracket.r32,
     r16: bracket.r16,
     qf: bracket.qf,
     sf: bracket.sf,
@@ -441,6 +452,7 @@ function RoundTabs({
   picks: BracketPick;
 }) {
   const rounds: Array<{ id: Round; label: string }> = [
+    { id: 'r32', label: '16avos' },
     { id: 'r16', label: 'Oitavas' },
     { id: 'qf', label: 'Quartas' },
     { id: 'sf', label: 'Semi' },

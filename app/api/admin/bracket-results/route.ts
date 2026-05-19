@@ -14,18 +14,24 @@ export async function POST(request: NextRequest) {
   }
 
   const { standings, results } = body as {
-    standings: Record<string, { first: string; second: string }>;
+    standings: Record<string, { first: string; second: string; third: string; fourth: string }>;
     results: Record<string, string>;
   };
 
   const supabase = createServiceClient();
 
-  // Update bracket_standings
+  // Update bracket_standings (all 4 positions for R32 support)
   if (standings) {
-    const standingsUpdates = Object.entries(standings).map(([groupId, { first, second }]) =>
+    const standingsUpdates = Object.entries(standings).map(([groupId, { first, second, third, fourth }]) =>
       supabase
         .from('bracket_standings')
-        .update({ first_place: first || null, second_place: second || null, updated_at: new Date().toISOString() })
+        .update({
+          first_place:  first  || null,
+          second_place: second || null,
+          third_place:  third  || null,
+          fourth_place: fourth || null,
+          updated_at: new Date().toISOString(),
+        })
         .eq('group_id', groupId)
     );
     await Promise.all(standingsUpdates);

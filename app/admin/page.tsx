@@ -229,9 +229,14 @@ export default function AdminPage() {
   const [resultsMsg, setResultsMsg] = useState('');
   const [syncMsg, setSyncMsg] = useState('');
 
-  // Bracket state
-  const [bracketStandings, setBracketStandings] = useState<Record<string, { first: string; second: string }>>(
-    Object.fromEntries(GROUPS.map((g) => [g.id, { first: DEFAULT_STANDINGS[g.id]?.[0] ?? '', second: DEFAULT_STANDINGS[g.id]?.[1] ?? '' }]))
+  // Bracket state (all 4 positions per group for R32 support)
+  const [bracketStandings, setBracketStandings] = useState<Record<string, { first: string; second: string; third: string; fourth: string }>>(
+    Object.fromEntries(GROUPS.map((g) => [g.id, {
+      first:  DEFAULT_STANDINGS[g.id]?.[0] ?? '',
+      second: DEFAULT_STANDINGS[g.id]?.[1] ?? '',
+      third:  DEFAULT_STANDINGS[g.id]?.[2] ?? '',
+      fourth: DEFAULT_STANDINGS[g.id]?.[3] ?? '',
+    }]))
   );
   const [bracketResults, setBracketResults] = useState<Record<string, string>>({});
   const [savingBracket, setSavingBracket] = useState(false);
@@ -266,9 +271,20 @@ export default function AdminPage() {
     setSettings(sett ?? null);
 
     if (bStandings && bStandings.length > 0) {
-      const newBs: Record<string, { first: string; second: string }> = {};
-      for (const s of bStandings as Array<{ group_id: string; first_place: string | null; second_place: string | null }>) {
-        newBs[s.group_id] = { first: s.first_place ?? '', second: s.second_place ?? '' };
+      const newBs: Record<string, { first: string; second: string; third: string; fourth: string }> = {};
+      for (const s of bStandings as Array<{
+        group_id: string;
+        first_place: string | null;
+        second_place: string | null;
+        third_place: string | null;
+        fourth_place: string | null;
+      }>) {
+        newBs[s.group_id] = {
+          first:  s.first_place  ?? '',
+          second: s.second_place ?? '',
+          third:  s.third_place  ?? '',
+          fourth: s.fourth_place ?? '',
+        };
       }
       setBracketStandings(newBs);
     }
@@ -761,7 +777,7 @@ export default function AdminPage() {
 
 // ─── BracketAdminTab ──────────────────────────────────────────────────────────
 
-type BracketStandingsState = Record<string, { first: string; second: string }>;
+type BracketStandingsState = Record<string, { first: string; second: string; third: string; fourth: string }>;
 
 function BracketAdminTab({
   bracketStandings,
@@ -780,16 +796,16 @@ function BracketAdminTab({
   saving: boolean;
   msg: string;
 }) {
-  // Build standings for computeBracket
+  // Build standings for computeBracket (all 4 positions)
   const standingsForBracket: Record<string, string[]> = {};
-  for (const [gId, { first, second }] of Object.entries(bracketStandings)) {
-    standingsForBracket[gId] = [first, second].filter(Boolean);
+  for (const [gId, { first, second, third, fourth }] of Object.entries(bracketStandings)) {
+    standingsForBracket[gId] = [first, second, third, fourth].filter(Boolean);
   }
 
   const bracket = computeBracket(standingsForBracket, bracketResults);
-  const rounds = ['r16', 'qf', 'sf', 'third', 'f'] as const;
+  const rounds = ['r32', 'r16', 'qf', 'sf', 'third', 'f'] as const;
   const matchesByRound: Record<string, BracketMatch[]> = {
-    r16: bracket.r16, qf: bracket.qf, sf: bracket.sf, f: bracket.f, third: bracket.third,
+    r32: bracket.r32, r16: bracket.r16, qf: bracket.qf, sf: bracket.sf, f: bracket.f, third: bracket.third,
   };
 
   function setResult(matchId: string, winner: string) {
@@ -820,7 +836,13 @@ function BracketAdminTab({
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {GROUPS.map((g) => {
-          const s = bracketStandings[g.id] ?? { first: '', second: '' };
+          const s = bracketStandings[g.id] ?? { first: '', second: '', third: '', fourth: '' };
+          const positions = [
+            { key: 'first',  label: '1º' },
+            { key: 'second', label: '2º' },
+            { key: 'third',  label: '3º' },
+            { key: 'fourth', label: '4º' },
+          ] as const;
           return (
             <div key={g.id} style={{
               background: t.surface, borderRadius: 12, border: `1px solid ${t.line}`, padding: '10px 12px',
@@ -831,14 +853,14 @@ function BracketAdminTab({
               }}>
                 Grupo {g.id}
               </div>
-              {(['first', 'second'] as const).map((pos, pi) => (
-                <div key={pos} style={{ marginBottom: pi === 0 ? 6 : 0 }}>
+              {positions.map(({ key, label }, pi) => (
+                <div key={key} style={{ marginBottom: pi < 3 ? 6 : 0 }}>
                   <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 10, fontWeight: 700, color: t.inkMuted, marginBottom: 3 }}>
-                    {pi + 1}º lugar
+                    {label} lugar
                   </div>
                   <select
-                    value={s[pos]}
-                    onChange={(e) => setBracketStandings((prev) => ({ ...prev, [g.id]: { ...prev[g.id], [pos]: e.target.value } }))}
+                    value={s[key]}
+                    onChange={(e) => setBracketStandings((prev) => ({ ...prev, [g.id]: { ...prev[g.id], [key]: e.target.value } }))}
                     style={{
                       width: '100%', border: `1px solid ${t.line}`, borderRadius: 8,
                       padding: '5px 8px', fontFamily: 'var(--font-manrope)', fontSize: 12,
