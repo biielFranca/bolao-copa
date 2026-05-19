@@ -141,7 +141,7 @@ export default function HomePage() {
             opacity: 0.95,
             maxWidth: 300,
           }}>
-            Acerte os jogos do Brasil e leve um combo grátis na Lau.
+            Dê seus palpites, some pontos e concorra a um combo com Smash Duplo Bacon, Batata 150g e Guaraná na Lau.
           </p>
         </div>
       </div>
