@@ -29,7 +29,7 @@ export function PhoneHeader({ onBack, rankingHref, title }: Props) {
         </button>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <BrandMark size={36} />
+          <BrandMark size={36} badge={false} />
           <span style={{ fontFamily: "'Anton', sans-serif", color: t.ink, fontSize: 18, letterSpacing: 0.4 }}>
             LAU BURGUER
           </span>

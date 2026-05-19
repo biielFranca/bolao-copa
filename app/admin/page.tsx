@@ -146,7 +146,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       <div style={{ position: 'relative', overflow: 'hidden', background: t.primary, padding: '48px 24px 36px', textAlign: 'center' }}>
         <BgStripes opacity={0.12} />
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <BrandMark size={52} />
+          <BrandMark size={52} badge={false} />
           <div style={{ fontFamily: 'var(--font-manrope)', fontSize: 11, fontWeight: 800, letterSpacing: 2, color: hexA(t.primaryInk, 0.75), textTransform: 'uppercase' }}>
             Lau Burguer · Copa 2026
           </div>
@@ -432,7 +432,7 @@ export default function AdminPage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <BrandMark size={32} />
+          <BrandMark size={32} badge={false} />
           <span style={{ fontFamily: 'var(--font-anton)', fontSize: 17, color: t.ink, letterSpacing: 0.4 }}>
             ADMIN
           </span>
