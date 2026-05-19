@@ -181,17 +181,25 @@ export default function HomePage() {
               width: 155,
               flexShrink: 0,
               marginTop: 8,
-              borderRadius: 18,
-              overflow: 'hidden',
-              boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
-              border: '2px solid rgba(255,255,255,0.2)',
-              aspectRatio: '3/4',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'visible',
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/assets/combo.jpg"
                 alt="Combo Smash Duplo Bacon"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  display: 'block',
+                  borderRadius: 18,
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
+                  border: '2px solid rgba(255,255,255,0.2)',
+                  transform: 'rotate(45deg)',
+                  transformOrigin: 'center center',
+                }}
               />
             </div>
           </div>
