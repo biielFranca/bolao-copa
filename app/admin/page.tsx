@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { createClient } from '@/lib/supabase/client';
 import { theme, hexA } from '@/lib/design-tokens';
 import { BrandMark } from '@/components/ui/brand-mark';
 import { BgStripes } from '@/components/ui/bg-stripes';
@@ -244,25 +243,27 @@ export default function AdminPage() {
 
   const loadData = useCallback(async () => {
     setDataLoading(true);
-    const supabase = createClient();
-
-    const [
-      { data: parts },
-      { data: preds },
-      { data: res },
-      { data: tour },
-      { data: sett },
-      { data: bStandings },
-      { data: bResults },
-    ] = await Promise.all([
-      supabase.from('participants').select('*').order('created_at', { ascending: false }),
-      supabase.from('predictions').select('*').order('submitted_at', { ascending: true }),
-      supabase.from('results').select('*'),
-      supabase.from('tournament_results').select('*').limit(1).single(),
-      supabase.from('app_settings').select('*').limit(1).single(),
-      supabase.from('bracket_standings').select('*'),
-      supabase.from('bracket_results').select('*'),
-    ]);
+    const resp = await fetch('/api/admin/data');
+    if (!resp.ok) {
+      setDataLoading(false);
+      return;
+    }
+    const payload: {
+      participants: Participant[];
+      predictions: Prediction[];
+      results: MatchResult[];
+      tournamentResults: TournamentResult | null;
+      settings: AppSettings | null;
+      bracketStandings: Array<{ group_id: string; first_place: string | null; second_place: string | null; third_place: string | null; fourth_place: string | null }>;
+      bracketResults: Array<{ match_id: string; winner: string | null }>;
+    } = await resp.json();
+    const parts       = payload.participants;
+    const preds       = payload.predictions;
+    const res         = payload.results;
+    const tour        = payload.tournamentResults;
+    const sett        = payload.settings;
+    const bStandings  = payload.bracketStandings;
+    const bResults    = payload.bracketResults;
 
     setParticipants(parts ?? []);
     setPredictions(preds ?? []);
